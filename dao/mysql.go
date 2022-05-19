@@ -2,6 +2,7 @@ package dao
 
 import (
 	"fmt"
+	"github.com/go-playground/validator/v10"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -12,8 +13,11 @@ import (
 )
 
 var SqlDB *sqlx.DB
+var validate *validator.Validate
 
-func InitSql() error {
+func InitSql(validatePtr *validator.Validate) error {
+	validate = validatePtr
+
 	var err error
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
@@ -172,6 +176,16 @@ func GetOrderCreateDate(orderID string) (string, error) {
 	return createDate, nil
 }
 
+func GetOrderBuyInPrincipal(orderID string) (float32, error) {
+	var buyInAmount float32
+	sqlStr := "select Principal from TXInfo where OrderID = ? and TXType = 'BuyIn'"
+	err := SqlDB.Get(&buyInAmount, sqlStr, orderID)
+	if err != nil {
+		return 0.0, err
+	}
+	return buyInAmount, nil
+}
+
 func CheckIfOrderMeetsMinimumInterest(orderID string) (bool, error) {
 	var minInterest int
 	sqlStr := "select StakingProducts.MinRedeemValue from StakingProducts join Orders on StakingProducts.ID = Orders.ProductID where Orders.OrderID = ?"
@@ -201,4 +215,62 @@ func UploadTransaction(tx *models.TXInfo) error {
 		return err
 	}
 	return nil
+}
+
+func InsertPrincipalUpdate(productID int, totalPrincipal float32) error {
+	sqlStr := `insert into PrincipalUpdates (ProductID, TotalPrincipal) values (?, ?)`
+	_, err := SqlDB.Exec(sqlStr, productID, totalPrincipal)
+	return err
+}
+
+func GetPrincipalUpdates(productID int) ([]*models.PrincipalUpdate, error) {
+	sqlStr := `select * from PrincipalUpdates where ProductID = ? order by Time asc`
+	rows, err := SqlDB.Queryx(sqlStr, productID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	updates := models.NewPrincipalUpdateList()
+	for rows.Next() {
+		update := models.NewPrincipalUpdate()
+		err := rows.StructScan(update)
+		if err != nil {
+			return nil, err
+		}
+		err = validate.Struct(update)
+		if err != nil {
+			return nil, err
+		}
+		updates = append(updates, update)
+	}
+	return updates, nil
+}
+
+func InsertOrderInterestList(orderInterestList []*models.OrderInterest) error {
+	sqlStr := `insert into OrderInterest (OrderID, Time, APY, InterestGain) values (:OrderID, :Time, :APY, :InterestGain)`
+	_, err := SqlDB.NamedExec(sqlStr, orderInterestList)
+	return err
+}
+
+func GetSortedOrderInterestList(orderID int) ([]*models.OrderInterest, error) {
+	sqlStr := `select * from OrderInterest where OrderID = ? order by Time asc`
+	rows, err := SqlDB.Queryx(sqlStr, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	interestList := models.NewOrderInterestList()
+	for rows.Next() {
+		interest := models.NewOrderInterest()
+		err := rows.StructScan(interest)
+		if err != nil {
+			return nil, err
+		}
+		err = validate.Struct(interest)
+		if err != nil {
+			return nil, err
+		}
+		interestList = append(interestList, interest)
+	}
+	return interestList, nil
 }

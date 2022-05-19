@@ -1,5 +1,9 @@
 package models
 
+const TxTypeBuyIn = "BuyIn"
+const TxTypeInterestOnly = "InterestOnly"
+const TxTypeOrderClosure = "OrderClosure"
+
 type Order struct {
 	OrderID      int    `db:"OrderID"`
 	ProductID    int    `db:"ProductID"`
@@ -12,7 +16,7 @@ type Order struct {
 type StakingProduct struct {
 	ID             int     `db:"ID"`
 	MinOrderValue  int     `db:"MinOrderValue"`
-	TopUpLimit     string  `db:"TopUpLimit"`
+	TopUpLimit     float32 `db:"TopUpLimit"`
 	MinRedeemValue int     `db:"MinRedeemValue"`
 	LockUpPeriod   int     `db:"LockUpPeriod"`
 	DefaultAPY     float32 `db:"DefaultAPY"`
@@ -34,7 +38,7 @@ type TXInfo struct {
 	UserDID        string  `db:"UserDID"`
 	OrderID        int     `db:"OrderID"`
 	TXCurrencyType string  `db:"TXCurrencyTYPE"`
-	TXType         string  `db:"TXType"`
+	TXType         string  `db:"TXType" validate:"required,oneof=BuyIn InterestOnly OrderClosure"`
 	TXHash         *string `db:"TXHash"`
 	Amount         string  `db:"Amount"`
 	UserAddress    string  `db:"UserAddress"`
@@ -44,7 +48,7 @@ type TXInfo struct {
 type OrderInterest struct {
 	ID                int     `db:"ID"`
 	OrderID           int     `db:"OrderID"`
-	Time              string  `db:"Time"`
+	Time              string  `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
 	APY               float32 `db:"APY"`
 	InterestGain      float32 `db:"InterestGain"`
 	TotalInterestGain float32 `db:"TotalInterestGain"`
@@ -64,6 +68,13 @@ type RedeemInput struct {
 	TXCurrencyType string `db:"TXCurrencyTYPE"`
 	Amount         string `db:"Amount"`
 	UserAddress    string `db:"UserAddress"`
+}
+
+type PrincipalUpdate struct {
+	ID             string  `db:"ID"`
+	ProductID      string  `db:"ProductID"`
+	Time           string  `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
+	TotalPrincipal float32 `db:"TotalPrincipal"`
 }
 
 func NewOrder() *Order {
@@ -86,10 +97,22 @@ func NewOrderInterest() *OrderInterest {
 	return &OrderInterest{}
 }
 
+func NewOrderInterestList() []*OrderInterest {
+	return []*OrderInterest{}
+}
+
 func NewStakingRecord() *StakingRecord {
 	return &StakingRecord{}
 }
 
 func NewRedeemInput() *RedeemInput {
 	return &RedeemInput{}
+}
+
+func NewPrincipalUpdate() *PrincipalUpdate {
+	return &PrincipalUpdate{}
+}
+
+func NewPrincipalUpdateList() []*PrincipalUpdate {
+	return []*PrincipalUpdate{}
 }

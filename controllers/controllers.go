@@ -59,7 +59,7 @@ func GetStakingRecordsHandler(c *gin.Context) {
 		timeElapsed := time.Since(createTime)
 		record.RedeemAll = (timeElapsed.Hours() < 24)
 		if record.Type == true {
-			record.TotalInterestGain = interest.CalculateInterest()
+			record.TotalInterestGain = interest.CalculateTotalInterest(record.OrderID)
 			daysElapsed := timeElapsed.Hours() / 24
 			record.Term = new(int)
 			*record.Term = int(1 + math.Floor(daysElapsed/180))

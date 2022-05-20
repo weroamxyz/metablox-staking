@@ -62,10 +62,10 @@ func generateAuth(privateKey *ecdsa.PrivateKey) (*bind.TransactOpts, error) {
 }
 
 func TransferTokens(toAddress common.Address, value int) error {
-	balance, err := instance.TokenBalance(nil)
-	if err != nil {
-		return err
-	}
+	//balance, err := instance.TokenBalance(nil)
+	//if err != nil {
+	//	return err
+	//}
 
 	bigValue := big.NewInt(int64(value))
 
@@ -81,4 +81,16 @@ func TransferTokens(toAddress common.Address, value int) error {
 
 	fmt.Println("tx address: ", tx.Hash().Hex())
 	return nil
+}
+
+func CheckIfTransactionCompleted(txHash string) (bool, error) { //todo: full implementation
+	return true, nil
+}
+
+func RedeemOrder() string { //todo: full implementation
+	return "placeholderHash"
+}
+
+func RedeemInterest() string { //todo: full implementation
+	return "placeholderHash"
 }

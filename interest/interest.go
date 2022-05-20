@@ -9,27 +9,27 @@ import (
 	"time"
 )
 
-func CalculateTotalInterest(orderID int) float32 { //placeholder
+func CalculateInterest() float64 { //placeholder
 	return 12.34
 }
 
-func calculatePeriodInterest(product *models.StakingProduct) float32 {
+func calculatePeriodInterest(product *models.StakingProduct) float64 {
 	MB := product.TopUpLimit
 	R := product.DefaultAPY
-	N := float32(product.LockUpPeriod)
+	N := float64(product.LockUpPeriod)
 	return (MB * R) / (360.0 / N)
 }
 
-func calculateMaxAPY(product *models.StakingProduct) float32 {
+func calculateMaxAPY(product *models.StakingProduct) float64 {
 	A := calculatePeriodInterest(product)
-	Z := float32(product.MinOrderValue)
-	N := float32(product.LockUpPeriod)
+	Z := float64(product.MinOrderValue)
+	N := float64(product.LockUpPeriod)
 	return (A / Z) * (360.0 / N)
 }
 
-func calculateCurrentAPY(product *models.StakingProduct, totalPrincipal float32) float32 {
+func calculateCurrentAPY(product *models.StakingProduct, totalPrincipal float64) float64 {
 	A := calculatePeriodInterest(product)
-	N := float32(product.LockUpPeriod)
+	N := float64(product.LockUpPeriod)
 	return (A / totalPrincipal) * (360.0 / N)
 }
 
@@ -39,7 +39,7 @@ func GetOrderInterestList(orderID int, until time.Time) ([]*models.OrderInterest
 	if err != nil {
 		return nil, err
 	}
-	product, err := dao.GetProductInfoByID(strconv.Itoa(order.ProductID))
+	product, err := dao.GetStakingProductByID(order.ProductID)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func GetOrderInterestList(orderID int, until time.Time) ([]*models.OrderInterest
 	for until.Sub(latestTime) > 0 {
 		latestTime = latestTime.Add(time.Hour)
 		// calculate numbers at given time
-		totalPrincipal := float32(0)
+		totalPrincipal := 0.0
 		principalIndex = findMostRecentPrincipalUpdate(principalUpdates, latestTime)
 		if principalIndex >= 0 {
 			totalPrincipal = principalUpdates[principalIndex].TotalPrincipal
@@ -99,8 +99,8 @@ func GetOrderInterestList(orderID int, until time.Time) ([]*models.OrderInterest
 	return interestList, nil
 }
 
-func calculateOrderInterest(order *models.Order, product *models.StakingProduct, when time.Time, totalPrincipal float32) (*models.OrderInterest, error) {
-	principal, err := dao.GetOrderBuyInPrincipal(strconv.Itoa(order.OrderID))
+func calculateOrderInterest(order *models.Order, product *models.StakingProduct, when time.Time, totalPrincipal float64) (*models.OrderInterest, error) {
+	principal, err := dao.GetOrderBuyInPrincipal(order.OrderID)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func calculateOrderInterest(order *models.Order, product *models.StakingProduct,
 	interest.APY = calculateCurrentAPY(product, totalPrincipal)
 	interest.Time = when.Format("2006-01-02 15:04:05")
 
-	N := float32(product.LockUpPeriod)
+	N := float64(product.LockUpPeriod)
 	interest.InterestGain = (interest.APY / (360.0/N)) * principal * (1/(N*24))
 	return interest, nil
 }

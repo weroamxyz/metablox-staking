@@ -1,5 +1,4 @@
 package interest
 
-func CalculateInterest() float32 { //placeholder
-	return 12.34
+func CalculateInterest() { //placeholder, should query Colin's code to update interest values in db
 }

@@ -11,11 +11,14 @@ func Setup() {
 	r.GET("/product/search/:id", controllers.GetProductInfoByIDHandler)
 
 	r.GET("/product/all", controllers.GetAllProductInfoHandler)
-	r.POST("/purchase/:id", controllers.PurchaseProductByIDHandler)
+	r.POST("/order/create", controllers.CreateOrderHandler)
+	r.POST("/order/confirm", controllers.SubmitBuyinHandler)
 
-	r.GET("/records/:did", controllers.GetStakingRecordsHandler)
-	r.GET("/transactions/:id", controllers.GetTransactionsByOrderIDHandler)
-	r.POST("/redeem/full", controllers.RedeemOrderHandler)
-	r.POST("/redeem/interest", controllers.RedeemInterestHandler)
+	r.GET("/staking/orders/:did", controllers.GetStakingRecordsHandler)
+	r.GET("/staking/transactions/order/:id", controllers.GetTransactionsByOrderIDHandler)
+	r.GET("/staking/transactions/user/:id", controllers.GetTransactionsByUserDIDHandler)
+	r.GET("/staking/interest/:id", controllers.GetOrderInterestHandler)
+	r.POST("/staking/redeem/full/:id", controllers.RedeemOrderHandler)
+	r.POST("/staking/redeem/interest/:id", controllers.RedeemInterestHandler)
 	r.Run(":8889")
 }

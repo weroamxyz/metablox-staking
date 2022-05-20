@@ -1,25 +1,34 @@
 package models
 
+const OrderTypePending = "Pending"
+const OrderTypeHolding = "Holding"
+const OrderTypeComplete = "Complete"
+
 type Order struct {
-	OrderID      int    `db:"OrderID"`
-	ProductID    int    `db:"ProductID"`
-	UserDID      string `db:"UserDID"`
-	Type         bool   `db:"Type"`
-	RedeemStatus bool   `db:"RedeemStatus"`
-	Term         *int   `db:"Term"`
+	OrderID             string  `db:"OrderID"`
+	ProductID           string  `db:"ProductID"`
+	UserDID             string  `db:"UserDID"`
+	Type                string  `db:"Type"`
+	Term                *int    `db:"Term"`
+	AccumulatedInterest float64 `db:"AccumulatedInterest"`
+	TotalInterestGained float64 `db:"TotalInterestGained"`
+	PaymentAddress      string  `db:"PaymentAddress"`
+	Amount              float64 `db:"Amount"`
+	UserAddress         string  `db:"UserAddress"`
 }
 
 type StakingProduct struct {
-	ID             int     `db:"ID"`
+	ID             string  `db:"ID"`
+	ProductName    string  `db:"ProductName"`
 	MinOrderValue  int     `db:"MinOrderValue"`
-	TopUpLimit     string  `db:"TopUpLimit"`
+	TopUpLimit     float64 `db:"TopUpLimit"`
 	MinRedeemValue int     `db:"MinRedeemValue"`
 	LockUpPeriod   int     `db:"LockUpPeriod"`
-	DefaultAPY     float32 `db:"DefaultAPY"`
+	DefaultAPY     float64 `db:"DefaultAPY"`
 	CreateDate     string  `db:"CreateDate"`
 	StartDate      string  `db:"StartDate"`
 	Term           int     `db:"Term"`
-	TotalPrincipal string  `db:"TotalPrincipal"`
+	BurnedInterest float64 `db:"BurnedInterest"`
 	Status         bool    `db:"Status"`
 }
 
@@ -30,40 +39,103 @@ type User struct {
 }
 
 type TXInfo struct {
-	PaymentNo      int     `db:"PaymentNo"`
-	UserDID        string  `db:"UserDID"`
-	OrderID        int     `db:"OrderID"`
-	TXCurrencyType string  `db:"TXCurrencyTYPE"`
+	PaymentNo      string  `db:"PaymentNo"`
+	OrderID        string  `db:"OrderID"`
+	TXCurrencyType string  `db:"TXCurrencyType"`
 	TXType         string  `db:"TXType"`
 	TXHash         *string `db:"TXHash"`
-	Amount         string  `db:"Amount"`
+	Principal      float64 `db:"Principal"`
+	Interest       float64 `db:"Interest"`
 	UserAddress    string  `db:"UserAddress"`
 	CreateDate     string  `db:"CreateDate"`
+	RedeemableTime string  `db:"RedeemableTime"`
 }
 
 type OrderInterest struct {
-	ID                int     `db:"ID"`
-	OrderID           int     `db:"OrderID"`
+	ID                string  `db:"ID"`
+	OrderID           string  `db:"OrderID"`
 	Time              string  `db:"Time"`
-	APY               float32 `db:"APY"`
-	InterestGain      float32 `db:"InterestGain"`
-	TotalInterestGain float32 `db:"TotalInterestGain"`
+	APY               float64 `db:"APY"`
+	InterestGain      float64 `db:"InterestGain"`
+	TotalInterestGain float64 `db:"TotalInterestGain"`
+}
+
+type PaymentInfo struct {
+	PaymentAddress string `db:"PaymentAddress"`
+	Tag            string `db:"Tag"`
+	CurrencyType   string `db:"CurrencyType"`
+	Network        string `db:"Network"`
+}
+
+type PrincipalUpdates struct {
+	ID             string  `db:"ID"`
+	ProductID      string  `db:"ProductID"`
+	Time           string  `db:"Time"`
+	TotalPrincipal float64 `db:"TotalPrincipal"`
 }
 
 type StakingRecord struct {
-	OrderID           int     `db:"OrderID"`
+	OrderID           string  `db:"OrderID"`
+	ProductID         string  `db:"ProductID"`
+	OrderStatus       string  `db:"Type"`
 	Term              *int    `db:"Term"`
-	CreateDate        string  `db:"CreateDate"`
-	TotalInterestGain float32 `db:"TotalInterestGain"`
-	RedeemAll         bool
-	Type              bool `db:"Type"`
+	PurchaseTime      string  `db:"CreateDate"`
+	PrincipalAmount   float64 `db:"Amount"`
+	TXCurrencyType    string  `db:"TXCurrencyType"`
+	InterestGain      float64
+	TotalAmount       float64
+	RedeemableTime    string `db:"RedeemableTime"`
+	IsInClosureWindow bool
 }
 
-type RedeemInput struct {
-	OrderID        string `db:"OrderID"`
-	TXCurrencyType string `db:"TXCurrencyTYPE"`
-	Amount         string `db:"Amount"`
-	UserAddress    string `db:"UserAddress"`
+type ProductDetails struct {
+	ID             string  `db:"ID"`
+	ProductName    string  `db:"ProductName"`
+	MinOrderValue  int     `db:"MinOrderValue"`
+	TopUpLimit     float64 `db:"TopUpLimit"`
+	MinRedeemValue int     `db:"MinRedeemValue"`
+	LockUpPeriod   int     `db:"LockUpPeriod"`
+	CurrentAPY     float64
+	Status         bool `db:"Status"`
+}
+
+type OrderInterestInfo struct {
+	AccumulatedInterest float64 `db:"AccumulatedInterest"`
+	TotalInterestGained float64 `db:"TotalInterestGained"`
+}
+
+type CreateOrderInput struct {
+	Amount      float64
+	UserAddress string
+	UserDID     string
+	ProductID   string
+}
+
+type CreateOrderOutput struct {
+	OrderID        string
+	PaymentAddress string
+}
+
+type SubmitBuyinInput struct {
+	OrderID string
+	TxHash  string
+}
+
+type SubmitBuyinOutput struct {
+	ProductName    string
+	Amount         float64
+	Time           string
+	UserAddress    string
+	TXCurrencyType string
+}
+
+type RedeemOrderOuput struct {
+	ProductName    string
+	Amount         float64
+	Time           string
+	ToAddress      string
+	TXCurrencyType string
+	TXHash         string
 }
 
 func NewOrder() *Order {
@@ -90,6 +162,30 @@ func NewStakingRecord() *StakingRecord {
 	return &StakingRecord{}
 }
 
-func NewRedeemInput() *RedeemInput {
-	return &RedeemInput{}
+func NewProductDetails() *ProductDetails {
+	return &ProductDetails{}
+}
+
+func NewCreateOrderInput() *CreateOrderInput {
+	return &CreateOrderInput{}
+}
+
+func NewCreateOrderOutput() *CreateOrderOutput {
+	return &CreateOrderOutput{}
+}
+
+func NewSubmitBuyinInput() *SubmitBuyinInput {
+	return &SubmitBuyinInput{}
+}
+
+func NewSubmitBuyinOutput() *SubmitBuyinOutput {
+	return &SubmitBuyinOutput{}
+}
+
+func NewOrderInterestInfo() *OrderInterestInfo {
+	return &OrderInterestInfo{}
+}
+
+func NewRedeemOrderOutput() *RedeemOrderOuput {
+	return &RedeemOrderOuput{}
 }

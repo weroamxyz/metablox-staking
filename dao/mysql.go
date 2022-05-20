@@ -85,6 +85,11 @@ func GetAllProductInfo() ([]*models.StakingProduct, error) {
 }
 
 func CreateOrder(order *models.Order) (int, error) {
+	err := validate.Struct(order)
+	if err != nil {
+		return 0, err
+	}
+
 	sqlStr := "insert into Orders (ProductID, UserDID, Type, Term, PaymentAddress, Amount, UserAddress) values (:ProductID, :UserDID, :Type, :Term, :PaymentAddress, :Amount, :UserAddress)"
 	result, err := SqlDB.NamedExec(sqlStr, order)
 	if err != nil {
@@ -180,6 +185,10 @@ func GetTransactionsByOrderID(orderID string) ([]*models.TXInfo, error) {
 		if err != nil {
 			return nil, err
 		}
+		err = validate.Struct(tx)
+		if err != nil {
+			return nil, err
+		}
 		transactions = append(transactions, tx)
 	}
 	return transactions, err
@@ -195,6 +204,10 @@ func GetTransactionsByUserDID(userDID string) ([]*models.TXInfo, error) {
 	for rows.Next() {
 		tx := models.NewTXInfo()
 		err = rows.StructScan(tx)
+		if err != nil {
+			return nil, err
+		}
+		err = validate.Struct(tx)
 		if err != nil {
 			return nil, err
 		}
@@ -216,6 +229,10 @@ func GetOrderInterestByID(orderID string) ([]*models.OrderInterest, error) {
 		if err != nil {
 			return nil, err
 		}
+		err = validate.Struct(interest)
+		if err != nil {
+			return nil, err
+		}
 		interests = append(interests, interest)
 	}
 	return interests, nil
@@ -234,6 +251,10 @@ func GetOrderByID(orderID string) (*models.Order, error) {
 	order := models.NewOrder()
 	sqlStr := "select * from Orders where OrderID = ?"
 	err := SqlDB.Get(order, sqlStr, orderID)
+	if err != nil {
+		return nil, err
+	}
+	err = validate.Struct(order)
 	if err != nil {
 		return nil, err
 	}
@@ -292,8 +313,12 @@ func GetMinimumInterestByOrderID(orderID string) (int, error) {
 }
 
 func UploadTransaction(tx *models.TXInfo) error {
+	err := validate.Struct(tx)
+	if err != nil {
+		return err
+	}
 	sqlStr := "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :RedeemableTime)"
-	_, err := SqlDB.NamedExec(sqlStr, tx)
+	_, err = SqlDB.NamedExec(sqlStr, tx)
 	if err != nil {
 		return err
 	}
@@ -301,6 +326,10 @@ func UploadTransaction(tx *models.TXInfo) error {
 }
 
 func SubmitBuyin(tx *models.TXInfo) error {
+	err := validate.Struct(tx)
+	if err != nil {
+		return err
+	}
 	dbTX, err := SqlDB.Beginx()
 	if err != nil {
 		return err

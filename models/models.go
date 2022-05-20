@@ -12,7 +12,7 @@ type Order struct {
 	OrderID             string  `db:"OrderID"`
 	ProductID           string  `db:"ProductID"`
 	UserDID             string  `db:"UserDID"`
-	Type                string  `db:"Type"`
+	Type                string  `db:"Type" validate:"required,oneof=Pending Holding Complete"`
 	Term                *int    `db:"Term"`
 	AccumulatedInterest float64 `db:"AccumulatedInterest"`
 	TotalInterestGained float64 `db:"TotalInterestGained"`

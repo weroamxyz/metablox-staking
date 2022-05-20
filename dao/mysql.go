@@ -455,3 +455,12 @@ func GetSortedOrderInterestList(orderID string) ([]*models.OrderInterest, error)
 	}
 	return interestList, nil
 }
+
+func UpdateOrderAccumulatedInterest(orderID string, accumulatedInterest float64) error {
+	sqlStr := "update Orders set AccumulatedInterest = ? where OrderID = ?"
+	_, err := SqlDB.Exec(sqlStr, accumulatedInterest, orderID)
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -355,7 +355,7 @@ func RedeemInterestHandler(c *gin.Context) {
 
 	txHash := contract.RedeemInterest()
 
-	err = dao.RedeemInterestByOrderID(orderID)
+	err = dao.RedeemInterestByOrderID(orderID) // TODO: OrderInterest table doesn't have TotalInterestGain row anymore
 	if err != nil {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return

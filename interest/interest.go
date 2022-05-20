@@ -95,6 +95,16 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 		return nil, err
 	}
 	interestList = append(interestList, interestToAdd...)
+
+	// set new accumulated interest value
+	sum := 0.0
+	for _, interest := range interestList {
+		sum += interest.InterestGain
+	}
+	err = dao.UpdateOrderAccumulatedInterest(orderID, sum)
+	if err != nil {
+		return nil, err
+	}
 	return interestList, nil
 }
 
@@ -110,13 +120,13 @@ func calculateOrderInterest(order *models.Order, product *models.StakingProduct,
 	interest.Time = when.Format("2006-01-02 15:04:05")
 
 	N := float64(product.LockUpPeriod)
-	interest.InterestGain = (interest.APY / (360.0/N)) * principal * (1/(N*24))
+	interest.InterestGain = (interest.APY / (360.0 / N)) * principal * (1 / (N * 24))
 	return interest, nil
 }
 
 func findMostRecentPrincipalUpdate(principalUpdates []*models.PrincipalUpdate, now time.Time) int {
 	index := sort.Search(len(principalUpdates), func(i int) bool {
-		updateTime, _ := time.Parse("2006-01-02 15:04:05",principalUpdates[i].Time)
+		updateTime, _ := time.Parse("2006-01-02 15:04:05", principalUpdates[i].Time)
 		return updateTime.After(now)
 	})
 	return index - 1 // the last index for which updateTime is before now

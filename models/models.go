@@ -57,12 +57,11 @@ type TXInfo struct {
 }
 
 type OrderInterest struct {
-	ID                string  `db:"ID"`
-	OrderID           string  `db:"OrderID"`
-	Time              string  `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
-	APY               float64 `db:"APY"`
-	InterestGain      float64 `db:"InterestGain"`
-	TotalInterestGain float64 `db:"TotalInterestGain"`
+	ID           string  `db:"ID"`
+	OrderID      string  `db:"OrderID"`
+	Time         string  `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
+	APY          float64 `db:"APY"`
+	InterestGain float64 `db:"InterestGain"`
 }
 
 type PaymentInfo struct {

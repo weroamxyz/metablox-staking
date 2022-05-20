@@ -3,7 +3,6 @@ package contract
 import (
 	"context"
 	"crypto/ecdsa"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -61,7 +60,7 @@ func generateAuth(privateKey *ecdsa.PrivateKey) (*bind.TransactOpts, error) {
 	return auth, nil
 }
 
-func TransferTokens(toAddress common.Address, value int) error {
+func TransferTokens(toAddress common.Address, value int) (string, error) {
 	//balance, err := instance.TokenBalance(nil)
 	//if err != nil {
 	//	return err
@@ -71,16 +70,15 @@ func TransferTokens(toAddress common.Address, value int) error {
 
 	auth, err := generateAuth(ownerKey)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	tx, err := instance.Transfer(auth, toAddress, bigValue)
 	if err != nil {
-		return nil
+		return "", nil
 	}
 
-	fmt.Println("tx address: ", tx.Hash().Hex())
-	return nil
+	return tx.Hash().Hex(), nil
 }
 
 func CheckIfTransactionCompleted(txHash string) (bool, error) { //todo: full implementation

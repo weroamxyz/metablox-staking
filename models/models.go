@@ -1,5 +1,9 @@
 package models
 
+import (
+	foundationModels "github.com/MetaBloxIO/metablox-foundation-services/models"
+)
+
 const OrderTypePending = "Pending"
 const OrderTypeHolding = "Holding"
 const OrderTypeComplete = "Complete"
@@ -74,6 +78,26 @@ type PrincipalUpdates struct {
 	TotalPrincipal float64 `db:"TotalPrincipal"`
 }
 
+type MinerInfo struct {
+	ID           string   `db:"ID"`
+	Name         string   `db:"Name"`
+	SSID         *string  `db:"SSID"`
+	BSSID        *string  `db:"BSSID"`
+	CreateTime   string   `db:"CreateTime"`
+	Longitude    *float64 `db:"Longitude"`
+	Latitude     *float64 `db:"Latitude"`
+	OnlineStatus bool     `db:"OnlineStatus"`
+	MiningPower  *float64 `db:"MiningPower"`
+}
+
+type SeedExchange struct {
+	VcID         string  `db:"VcID"`
+	UserDID      string  `db:"UserDID"`
+	ExchangeRate float64 `db:"ExchangeRate"`
+	Amount       float64 `db:"Amount"`
+	CreateTime   string  `db:"CreateTime"`
+}
+
 type StakingRecord struct {
 	OrderID           string  `db:"OrderID"`
 	ProductID         string  `db:"ProductID"`
@@ -97,6 +121,11 @@ type ProductDetails struct {
 	LockUpPeriod   int     `db:"LockUpPeriod"`
 	CurrentAPY     float64
 	Status         bool `db:"Status"`
+}
+
+type SeedInfo struct {
+	ID     string
+	Amount float64
 }
 
 type OrderInterestInfo struct {
@@ -138,6 +167,24 @@ type RedeemOrderOuput struct {
 	TXHash         string
 }
 
+type MinerListInput struct {
+	Latitude  *float64
+	Longitude *float64
+}
+
+type SeedExchangeInput struct {
+	WalletAddress    string
+	SeedPresentation foundationModels.VerifiablePresentation
+	PublicKeyString  []byte
+}
+
+type SeedExchangeOutput struct {
+	Amount       float64
+	TxHash       string
+	TxTime       string
+	ExchangeRate float64
+}
+
 func NewOrder() *Order {
 	return &Order{}
 }
@@ -156,6 +203,14 @@ func NewTXInfo() *TXInfo {
 
 func NewOrderInterest() *OrderInterest {
 	return &OrderInterest{}
+}
+
+func NewMinerInfo() *MinerInfo {
+	return &MinerInfo{}
+}
+
+func NewSeedExchange() *SeedExchange {
+	return &SeedExchange{}
 }
 
 func NewStakingRecord() *StakingRecord {
@@ -188,4 +243,16 @@ func NewOrderInterestInfo() *OrderInterestInfo {
 
 func NewRedeemOrderOutput() *RedeemOrderOuput {
 	return &RedeemOrderOuput{}
+}
+
+func NewMinerListInput() *MinerListInput {
+	return &MinerListInput{}
+}
+
+func NewSeedExchangeInput() *SeedExchangeInput {
+	return &SeedExchangeInput{}
+}
+
+func NewSeedExchangeOutput() *SeedExchangeOutput {
+	return &SeedExchangeOutput{}
 }

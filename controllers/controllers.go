@@ -1,16 +1,23 @@
 package controllers
 
 import (
+	"crypto/ecdsa"
 	"math"
 	"strconv"
 	"time"
 
+	"github.com/MetaBloxIO/metablox-foundation-services/presentations"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gin-gonic/gin"
 	"github.com/metabloxStaking/contract"
 	"github.com/metabloxStaking/dao"
+	"github.com/metabloxStaking/foundationdao"
 	"github.com/metabloxStaking/interest"
 	"github.com/metabloxStaking/models"
 )
+
+const placeholderExchangeRate = 30.0
 
 func GetProductInfoByIDHandler(c *gin.Context) {
 	productID := c.Param("id")
@@ -357,6 +364,148 @@ func RedeemInterestHandler(c *gin.Context) {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
+
+	ResponseSuccess(c, output)
+}
+
+func GetMinerListHandler(c *gin.Context) {
+	input := models.NewMinerListInput()
+	err := c.BindJSON(input)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	minerList, err := foundationdao.GetAllMinerInfo()
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	for _, miner := range minerList {
+		createDate, err := time.Parse("2006-01-02 15:04:05", miner.CreateTime)
+		if err != nil {
+			ResponseErrorWithMsg(c, CodeError, err.Error())
+			return
+		}
+		miner.CreateTime = strconv.FormatFloat(float64(createDate.UnixNano())/float64(time.Second), 'f', 3, 64)
+	}
+
+	if input.Latitude == nil || input.Longitude == nil {
+		ResponseSuccess(c, minerList)
+		return
+	}
+
+	closestMiner := models.NewMinerInfo()
+	closestDistance := math.Inf(1)
+
+	for _, miner := range minerList {
+		if miner.Longitude == nil || miner.Latitude == nil {
+			continue
+		}
+		longDistance := *input.Longitude - *miner.Longitude
+		latDistance := *input.Latitude - *miner.Latitude
+		totalDistance := math.Sqrt(math.Pow(longDistance, 2) + math.Pow(latDistance, 2))
+		if totalDistance < closestDistance {
+			closestDistance = totalDistance
+			closestMiner = miner
+		}
+	}
+
+	ResponseSuccess(c, closestMiner)
+}
+
+func GetMinerByIDHandler(c *gin.Context) {
+	minerID := c.Param("id")
+
+	miner, err := foundationdao.GetMinerInfoByID(minerID)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	createDate, err := time.Parse("2006-01-02 15:04:05", miner.CreateTime)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+	miner.CreateTime = strconv.FormatFloat(float64(createDate.UnixNano())/float64(time.Second), 'f', 3, 64)
+
+	ResponseSuccess(c, miner)
+}
+
+func GetExchangeRateHandler(c *gin.Context) {
+	ResponseSuccess(c, placeholderExchangeRate)
+}
+
+func GetRewardHistoryHandler(c *gin.Context) {
+	did := c.Param("did")
+	exchangeList, err := foundationdao.GetSeedHistory(did)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	redeemedToken := 0.0
+
+	for _, exchange := range exchangeList {
+		redeemedToken += exchange.Amount
+	}
+
+	ResponseSuccess(c, redeemedToken)
+}
+
+func ExchangeSeedHandler(c *gin.Context) {
+	input := models.NewSeedExchangeInput()
+	err := c.BindJSON(input)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	minerPubKey := new(ecdsa.PublicKey) //todo: get this from some source
+
+	holderPubKey, err := crypto.UnmarshalPubkey(input.PublicKeyString)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	_, err = presentations.VerifyVP(&input.SeedPresentation, holderPubKey, minerPubKey) //going to fail at the moment as we don't have all the info to do this verification
+	if err != nil {
+		//ResponseErrorWithMsg(c, CodeError, err.Error())
+		//return
+	}
+
+	targetAddress := common.HexToAddress(input.WalletAddress)
+
+	seedVC := input.SeedPresentation.VerifiableCredential[0]
+	seedInfo := seedVC.CredentialSubject.(models.SeedInfo)
+	exchangeValue := seedInfo.Amount * placeholderExchangeRate //todo: may have to change calculation method
+
+	txHash, err := contract.TransferTokens(targetAddress, int(exchangeValue)) //todo: need a proper method of converting exchangeValue into an int
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	exchange := models.NewSeedExchange()
+	exchange.VcID = seedVC.ID
+	exchange.UserDID = seedInfo.ID
+	exchange.ExchangeRate = placeholderExchangeRate           //todo: get actual value
+	exchange.Amount = seedInfo.Amount * exchange.ExchangeRate //todo: may have to change calculation method
+
+	err = foundationdao.UploadSeedExchange(exchange)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	output := models.NewSeedExchangeOutput()
+	output.Amount = exchange.Amount
+	output.ExchangeRate = exchange.ExchangeRate
+	output.TxHash = txHash
+	output.TxTime = strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
 
 	ResponseSuccess(c, output)
 }

@@ -328,6 +328,21 @@ func RedeemOrderHandler(c *gin.Context) {
 	output.Time = strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
 	output.ToAddress = userAddress
 
+	// record change in staking pool's total principal
+	newPrincipal := models.NewPrincipalUpdate()
+	oldPrincipal, err := dao.GetLatestPrincipalUpdate(order.ProductID)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+	newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal - order.Amount
+
+	err = dao.InsertPrincipalUpdate(order.ProductID, newPrincipal.TotalPrincipal)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
 	ResponseSuccess(c, output)
 }
 

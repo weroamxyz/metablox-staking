@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"math"
 	"strconv"
 	"time"
@@ -19,7 +20,18 @@ func GetProductInfoByIDHandler(c *gin.Context) {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
-	product.CurrentAPY = 1234 //todo: get value from Colin's code
+	var totalPrincipal float64
+	update, err := dao.GetLatestPrincipalUpdate(productID)
+	if err == nil {
+		totalPrincipal = update.TotalPrincipal
+	} else if err == sql.ErrNoRows {
+		totalPrincipal = 0.0
+	} else {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+	product.CurrentAPY = interest.CalculateCurrentAPY(product, totalPrincipal)
+
 	ResponseSuccess(c, product)
 }
 
@@ -28,6 +40,19 @@ func GetAllProductInfoHandler(c *gin.Context) {
 	if err != nil {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
+	}
+	var totalPrincipal float64
+	for _, product := range products {
+		update, err := dao.GetLatestPrincipalUpdate(product.ID)
+		if err == nil {
+			totalPrincipal = update.TotalPrincipal
+		} else if err == sql.ErrNoRows {
+			totalPrincipal = 0.0
+		} else {
+			ResponseErrorWithMsg(c, CodeError, err.Error())
+			return
+		}
+		product.CurrentAPY = interest.CalculateCurrentAPY(product, totalPrincipal)
 	}
 	ResponseSuccess(c, products)
 }
@@ -126,6 +151,25 @@ func SubmitBuyinHandler(c *gin.Context) {
 	output.Time = date
 	output.TXCurrencyType = txInfo.TXCurrencyType
 	output.UserAddress = txInfo.UserAddress
+
+	// record change in staking pool's total principal
+	newPrincipal := models.NewPrincipalUpdate()
+	oldPrincipal, err := dao.GetLatestPrincipalUpdate(product.ID)
+	if err == nil {
+		newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal + txInfo.Principal
+	} else if err == sql.ErrNoRows {
+		newPrincipal.TotalPrincipal = txInfo.Principal
+	} else {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	err = dao.InsertPrincipalUpdate(product.ID, newPrincipal.TotalPrincipal)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
 	ResponseSuccess(c, output)
 }
 

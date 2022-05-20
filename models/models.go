@@ -22,18 +22,19 @@ type Order struct {
 }
 
 type StakingProduct struct {
-	ID             string  `db:"ID"`
-	ProductName    string  `db:"ProductName"`
-	MinOrderValue  int     `db:"MinOrderValue"`
-	TopUpLimit     float64 `db:"TopUpLimit"`
-	MinRedeemValue int     `db:"MinRedeemValue"`
-	LockUpPeriod   int     `db:"LockUpPeriod"`
+	ID             string  `db:"ID" json:"id"`
+	ProductName    string  `db:"ProductName" json:"productName"`
+	MinOrderValue  int     `db:"MinOrderValue" json:"minOrderValue"`
+	TopUpLimit     float64 `db:"TopUpLimit" json:"topUpLimit"`
+	MinRedeemValue int     `db:"MinRedeemValue" json:"minRedeemValue"`
+	LockUpPeriod   int     `db:"LockUpPeriod" json:"lockUpPeriod"`
 	DefaultAPY     float64 `db:"DefaultAPY"`
+	CurrentAPY     float64 `json:"currentAPY"`
 	CreateDate     string  `db:"CreateDate"`
 	StartDate      string  `db:"StartDate"`
 	Term           int     `db:"Term"`
 	BurnedInterest float64 `db:"BurnedInterest"`
-	Status         bool    `db:"Status"`
+	Status         bool    `db:"Status" json:"status"`
 }
 
 type User struct {
@@ -71,13 +72,6 @@ type PaymentInfo struct {
 	Network        string `db:"Network"`
 }
 
-type PrincipalUpdates struct {
-	ID             string  `db:"ID"`
-	ProductID      string  `db:"ProductID"`
-	Time           string  `db:"Time"`
-	TotalPrincipal float64 `db:"TotalPrincipal"`
-}
-
 type StakingRecord struct {
 	OrderID           string  `db:"OrderID"`
 	ProductID         string  `db:"ProductID"`
@@ -90,17 +84,6 @@ type StakingRecord struct {
 	TotalAmount       float64
 	RedeemableTime    string `db:"RedeemableTime"`
 	IsInClosureWindow bool
-}
-
-type ProductDetails struct {
-	ID             string  `db:"ID"`
-	ProductName    string  `db:"ProductName"`
-	MinOrderValue  int     `db:"MinOrderValue"`
-	TopUpLimit     float64 `db:"TopUpLimit"`
-	MinRedeemValue int     `db:"MinRedeemValue"`
-	LockUpPeriod   int     `db:"LockUpPeriod"`
-	CurrentAPY     float64
-	Status         bool `db:"Status"`
 }
 
 type OrderInterestInfo struct {
@@ -175,10 +158,6 @@ func NewOrderInterestList() []*OrderInterest {
 
 func NewStakingRecord() *StakingRecord {
 	return &StakingRecord{}
-}
-
-func NewProductDetails() *ProductDetails {
-	return &ProductDetails{}
 }
 
 func NewCreateOrderInput() *CreateOrderInput {

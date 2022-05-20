@@ -53,7 +53,7 @@ func InitSql(validatePtr *validator.Validate) error {
 	return nil
 }
 
-func GetStakingProductByID(productID string) (*models.StakingProduct, error) {
+func GetProductInfoByID(productID string) (*models.StakingProduct, error) {
 	product := models.NewStakingProduct()
 
 	sqlStr := "select * from StakingProducts where ID = ?"
@@ -65,33 +65,20 @@ func GetStakingProductByID(productID string) (*models.StakingProduct, error) {
 	return product, nil
 }
 
-func GetProductInfoByID(productID string) (*models.ProductDetails, error) {
-	product := models.NewProductDetails()
-
-	sqlStr := "select ID, ProductName, MinOrderValue, TopUpLimit, LockUpPeriod, Status, MinRedeemValue from StakingProducts where ID = ?"
-	err := SqlDB.Get(product, sqlStr, productID)
-	if err != nil {
-		return nil, err
-	}
-
-	return product, nil
-}
-
-func GetAllProductInfo() ([]*models.ProductDetails, error) {
-	var products []*models.ProductDetails
-	sqlStr := "select ID, ProductName, MinOrderValue, TopUpLimit, LockUpPeriod, Status, MinRedeemValue from StakingProducts"
+func GetAllProductInfo() ([]*models.StakingProduct, error) {
+	var products []*models.StakingProduct
+	sqlStr := "select * from StakingProducts"
 	rows, err := SqlDB.Queryx(sqlStr)
 	if err != nil {
 		return nil, err
 	}
 
 	for rows.Next() {
-		product := models.NewProductDetails()
+		product := models.NewStakingProduct()
 		err = rows.StructScan(product)
 		if err != nil {
 			return nil, err
 		}
-		product.CurrentAPY = 1234 //todo: get value from Colin's code
 		products = append(products, product)
 	}
 	return products, err
@@ -374,6 +361,18 @@ func InsertPrincipalUpdate(productID string, totalPrincipal float64) error {
 	sqlStr := `insert into PrincipalUpdates (ProductID, TotalPrincipal) values (?, ?)`
 	_, err := SqlDB.Exec(sqlStr, productID, totalPrincipal)
 	return err
+}
+
+func GetLatestPrincipalUpdate(productID string) (*models.PrincipalUpdate, error) {
+	update := models.NewPrincipalUpdate()
+
+	sqlStr := "select * from PrincipalUpdates where ProductID = ? order by Time desc"
+	err := SqlDB.Get(update, sqlStr, productID)
+	if err != nil {
+		return nil, err
+	}
+
+	return update, nil
 }
 
 func GetPrincipalUpdates(productID string) ([]*models.PrincipalUpdate, error) {

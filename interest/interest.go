@@ -5,7 +5,6 @@ import (
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
 	"sort"
-	"strconv"
 	"time"
 )
 
@@ -33,9 +32,9 @@ func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal float64)
 	return (A / totalPrincipal) * (360.0 / N)
 }
 
-func GetOrderInterestList(orderID int, until time.Time) ([]*models.OrderInterest, error) {
+func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInterest, error) {
 	targetTime := TruncateToHour(until.In(time.UTC))
-	order, err := dao.GetOrderByID(strconv.Itoa(orderID))
+	order, err := dao.GetOrderByID(orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +56,7 @@ func GetOrderInterestList(orderID int, until time.Time) ([]*models.OrderInterest
 
 	var latestTime time.Time
 	if len(interestList) == 0 {
-		startTimeStr, err := dao.GetOrderCreateDate(strconv.Itoa(orderID))
+		startTimeStr, err := dao.GetOrderCreateDate(orderID)
 		if err != nil {
 			return nil, err
 		}

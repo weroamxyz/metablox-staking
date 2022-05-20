@@ -433,7 +433,7 @@ func InsertOrderInterestList(orderInterestList []*models.OrderInterest) error {
 	return err
 }
 
-func GetSortedOrderInterestList(orderID int) ([]*models.OrderInterest, error) {
+func GetSortedOrderInterestList(orderID string) ([]*models.OrderInterest, error) {
 	sqlStr := `select * from OrderInterest where OrderID = ? order by Time asc`
 	rows, err := SqlDB.Queryx(sqlStr, orderID)
 	if err != nil {

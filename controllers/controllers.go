@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/MetaBloxIO/metablox-foundation-services/presentations"
@@ -369,12 +370,8 @@ func RedeemInterestHandler(c *gin.Context) {
 }
 
 func GetMinerListHandler(c *gin.Context) {
-	input := models.NewMinerListInput()
-	err := c.BindJSON(input)
-	if err != nil {
-		ResponseErrorWithMsg(c, CodeError, err.Error())
-		return
-	}
+	latitude := c.Query("latitude")
+	longitude := c.Query("longitude")
 
 	minerList, err := foundationdao.GetAllMinerInfo()
 	if err != nil {
@@ -391,8 +388,20 @@ func GetMinerListHandler(c *gin.Context) {
 		miner.CreateTime = strconv.FormatFloat(float64(createDate.UnixNano())/float64(time.Second), 'f', 3, 64)
 	}
 
-	if input.Latitude == nil || input.Longitude == nil {
+	if latitude == "" || longitude == "" {
 		ResponseSuccess(c, minerList)
+		return
+	}
+
+	floatLat, err := strconv.ParseFloat(latitude, 64)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	floatLong, err := strconv.ParseFloat(longitude, 64)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
 
@@ -403,8 +412,8 @@ func GetMinerListHandler(c *gin.Context) {
 		if miner.Longitude == nil || miner.Latitude == nil {
 			continue
 		}
-		longDistance := *input.Longitude - *miner.Longitude
-		latDistance := *input.Latitude - *miner.Latitude
+		longDistance := floatLong - *miner.Longitude
+		latDistance := floatLat - *miner.Latitude
 		totalDistance := math.Sqrt(math.Pow(longDistance, 2) + math.Pow(latDistance, 2))
 		if totalDistance < closestDistance {
 			closestDistance = totalDistance
@@ -416,7 +425,7 @@ func GetMinerListHandler(c *gin.Context) {
 }
 
 func GetMinerByIDHandler(c *gin.Context) {
-	minerID := c.Param("id")
+	minerID := c.Query("minerid")
 
 	miner, err := foundationdao.GetMinerInfoByID(minerID)
 	if err != nil {
@@ -472,7 +481,7 @@ func ExchangeSeedHandler(c *gin.Context) {
 	}
 
 	_, err = presentations.VerifyVP(&input.SeedPresentation, holderPubKey, minerPubKey) //going to fail at the moment as we don't have all the info to do this verification
-	if err != nil {
+	if err != nil {                                                                     //skip this error check to avoid failures until we can properly verify seed presentations
 		//ResponseErrorWithMsg(c, CodeError, err.Error())
 		//return
 	}
@@ -480,6 +489,12 @@ func ExchangeSeedHandler(c *gin.Context) {
 	targetAddress := common.HexToAddress(input.WalletAddress)
 
 	seedVC := input.SeedPresentation.VerifiableCredential[0]
+	splitID := strings.Split(seedVC.ID, "/")
+	if len(splitID) != 5 {
+		ResponseErrorWithMsg(c, CodeError, "VC id is improperly formatted")
+		return
+	}
+	models.ConvertCredentialSubject(&seedVC)
 	seedInfo := seedVC.CredentialSubject.(models.SeedInfo)
 	exchangeValue := seedInfo.Amount * placeholderExchangeRate //todo: may have to change calculation method
 
@@ -490,7 +505,7 @@ func ExchangeSeedHandler(c *gin.Context) {
 	}
 
 	exchange := models.NewSeedExchange()
-	exchange.VcID = seedVC.ID
+	exchange.VcID = strings.Split(seedVC.ID, "/")[4] //should equal numerical ID
 	exchange.UserDID = seedInfo.ID
 	exchange.ExchangeRate = placeholderExchangeRate           //todo: get actual value
 	exchange.Amount = seedInfo.Amount * exchange.ExchangeRate //todo: may have to change calculation method

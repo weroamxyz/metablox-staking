@@ -167,12 +167,8 @@ type RedeemOrderOuput struct {
 	TXHash         string
 }
 
-type MinerListInput struct {
-	Latitude  *float64
-	Longitude *float64
-}
-
 type SeedExchangeInput struct {
+	DID              string //placeholder
 	WalletAddress    string
 	SeedPresentation foundationModels.VerifiablePresentation
 	PublicKeyString  []byte
@@ -221,6 +217,10 @@ func NewProductDetails() *ProductDetails {
 	return &ProductDetails{}
 }
 
+func NewSeedInfo() *SeedInfo {
+	return &SeedInfo{}
+}
+
 func NewCreateOrderInput() *CreateOrderInput {
 	return &CreateOrderInput{}
 }
@@ -245,14 +245,22 @@ func NewRedeemOrderOutput() *RedeemOrderOuput {
 	return &RedeemOrderOuput{}
 }
 
-func NewMinerListInput() *MinerListInput {
-	return &MinerListInput{}
-}
-
 func NewSeedExchangeInput() *SeedExchangeInput {
 	return &SeedExchangeInput{}
 }
 
 func NewSeedExchangeOutput() *SeedExchangeOutput {
 	return &SeedExchangeOutput{}
+}
+
+//need to convert SeedInfo portion of presentation from a map to a struct.
+//This should most likely be done in foundation service with the rest of the conversions,
+//but I implemented it here to make the system work. In the future, this can be
+//removed once the foundation service has implemented SeedInfo VCs
+func ConvertCredentialSubject(vc *foundationModels.VerifiableCredential) {
+	subjectMap := vc.CredentialSubject.(map[string]interface{})
+	seedInfo := NewSeedInfo()
+	seedInfo.ID = subjectMap["id"].(string)
+	seedInfo.Amount = subjectMap["amount"].(float64)
+	vc.CredentialSubject = *seedInfo
 }

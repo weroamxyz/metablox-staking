@@ -46,12 +46,14 @@ func GetAllOrderInterest(orderID string, until time.Time) ([]*models.OrderIntere
 		if err != nil {
 			return nil, err
 		}
-		startDate, _ := time.Parse("2006-01-02 15:04:05", product.StartDate)
-		startDate = TruncateToHour(startDate.In(time.UTC))
-		endDate := startDate.Add(time.Hour * 24 * time.Duration(product.LockUpPeriod))
+		startDate, _ := time.Parse("2006-01-02 15:04:05", productHistory.CreateDate)
+		productStartDate, _ := time.Parse("2006-01-02 15:04:05", product.StartDate)
+		productStartDate = TruncateToHour(productStartDate.In(time.UTC))
+		endDate := productStartDate.Add(time.Hour * 24 * time.Duration(product.LockUpPeriod))
 		if targetTime.Before(endDate) {
 			endDate = targetTime
 		}
+
 		interestToAdd, err := GetOrderInterestList(orderID, product, startDate, endDate)
 		if err != nil {
 			return nil, err

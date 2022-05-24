@@ -481,6 +481,10 @@ func GetProductHistory(orderID string) ([]*models.ProductHistory, error) {
 		if err != nil {
 			return nil, err
 		}
+		err = validate.Struct(history)
+		if err != nil {
+			return nil, err
+		}
 		historyList = append(historyList, history)
 	}
 	return historyList, nil

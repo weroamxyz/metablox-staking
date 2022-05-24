@@ -32,35 +32,55 @@ func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal float64)
 	return (A / totalPrincipal) * (360.0 / N)
 }
 
-func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInterest, error) {
+func GetAllOrderInterest(orderID string, until time.Time) ([]*models.OrderInterest, error) {
+	// TODO: maybe update product history?
 	targetTime := TruncateToHour(until.In(time.UTC))
-	order, err := dao.GetOrderByID(orderID)
-	if err != nil {
-		return nil, err
-	}
-	product, err := dao.GetProductInfoByID(order.ProductID)
+	historyList, err := dao.GetProductHistory(orderID)
 	if err != nil {
 		return nil, err
 	}
 
-	principalUpdates, err := dao.GetPrincipalUpdates(order.ProductID)
+	orderInterestList := make([]*models.OrderInterest, 0)
+	for _, productHistory := range historyList {
+		product, err := dao.GetProductInfoByID(productHistory.ProductID)
+		if err != nil {
+			return nil, err
+		}
+		startDate, _ := time.Parse("2006-01-02 15:04:05", product.StartDate)
+		startDate = TruncateToHour(startDate.In(time.UTC))
+		endDate := startDate.Add(time.Hour * 24 * time.Duration(product.LockUpPeriod))
+		if targetTime.Before(endDate) {
+			endDate = targetTime
+		}
+		interestToAdd, err := GetOrderInterestList(orderID, product, startDate, endDate)
+		if err != nil {
+			return nil, err
+		}
+		orderInterestList = append(orderInterestList, interestToAdd...)
+	}
+	return orderInterestList, nil
+}
+
+func GetOrderInterestList(orderID string, product *models.StakingProduct, from time.Time, until time.Time) ([]*models.OrderInterest, error) {
+	order, err := dao.GetOrderByID(orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	principalUpdates, err := dao.GetPrincipalUpdates(product.ID)
 	if err != nil {
 		return nil, err
 	}
 	principalIndex := 0
 
-	interestList, err := dao.GetSortedOrderInterestList(orderID)
+	interestList, err := dao.GetSortedOrderInterestListUntilDate(orderID, until.Format("2006-01-02 15:04:05"))
 	if err != nil {
 		return nil, err
 	}
 
 	var latestTime time.Time
 	if len(interestList) == 0 {
-		startTimeStr, err := dao.GetOrderCreateDate(orderID)
-		if err != nil {
-			return nil, err
-		}
-		latestTime, _ = time.Parse("2006-01-02 15:04:05", startTimeStr)
+		latestTime = from
 	} else {
 		latestOrderInterest := interestList[len(interestList)-1]
 		latestTime, err = time.Parse("2006-01-02 15:04:05", latestOrderInterest.Time)
@@ -70,13 +90,13 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 	}
 
 	latestTime = TruncateToHour(latestTime.In(time.UTC))
-	if latestTime.Sub(targetTime) >= 0 {
+	if latestTime.Sub(until) >= 0 {
 		return interestList, nil
 	}
 
 	// generate orderInterest until it reaches the current hour
 	interestToAdd := models.NewOrderInterestList()
-	for until.Sub(latestTime) > 0 {
+	for until.After(latestTime) {
 		latestTime = latestTime.Add(time.Hour)
 		// calculate numbers at given time
 		totalPrincipal := 0.0

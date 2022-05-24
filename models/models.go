@@ -131,6 +131,12 @@ type PrincipalUpdate struct {
 	TotalPrincipal float64 `db:"TotalPrincipal"`
 }
 
+type ProductHistory struct {
+	OrderID    string `db:"ID"`
+	ProductID  string `db:"ProductID"`
+	CreateDate string `db:"CreateDate"`
+}
+
 func NewOrder() *Order {
 	return &Order{}
 }
@@ -189,4 +195,12 @@ func NewPrincipalUpdate() *PrincipalUpdate {
 
 func NewPrincipalUpdateList() []*PrincipalUpdate {
 	return []*PrincipalUpdate{}
+}
+
+func NewProductHistory() *ProductHistory {
+	return &ProductHistory{}
+}
+
+func NewProductHistoryList() []*ProductHistory {
+	return []*ProductHistory{}
 }

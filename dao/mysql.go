@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-playground/validator/v10"
-
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	logger "github.com/sirupsen/logrus"
@@ -433,9 +432,9 @@ func InsertOrderInterestList(orderInterestList []*models.OrderInterest) error {
 	return err
 }
 
-func GetSortedOrderInterestList(orderID string) ([]*models.OrderInterest, error) {
-	sqlStr := `select * from OrderInterest where OrderID = ? order by Time asc`
-	rows, err := SqlDB.Queryx(sqlStr, orderID)
+func GetSortedOrderInterestListUntilDate(orderID string, until string) ([]*models.OrderInterest, error) {
+	sqlStr := `select * from OrderInterest where OrderID = ? and Time <= ? order by Time asc`
+	rows, err := SqlDB.Queryx(sqlStr, orderID, until)
 	if err != nil {
 		return nil, err
 	}
@@ -459,8 +458,30 @@ func GetSortedOrderInterestList(orderID string) ([]*models.OrderInterest, error)
 func UpdateOrderAccumulatedInterest(orderID string, accumulatedInterest float64) error {
 	sqlStr := "update Orders set AccumulatedInterest = ? where OrderID = ?"
 	_, err := SqlDB.Exec(sqlStr, accumulatedInterest, orderID)
+	return err
+}
+
+func InsertProductHistory(orderID string, productID string) error {
+	sqlStr := `insert into PrincipalUpdates (OrderID, ProductID) values (?, ?)`
+	_, err := SqlDB.Exec(sqlStr, orderID, productID)
+	return err
+}
+
+func GetProductHistory(orderID string) ([]*models.ProductHistory, error) {
+	sqlStr := `select * from ProductHistory where OrderID = ?`
+	rows, err := SqlDB.Queryx(sqlStr, orderID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	defer rows.Close()
+	historyList := models.NewProductHistoryList()
+	for rows.Next() {
+		history := models.NewProductHistory()
+		err := rows.StructScan(history)
+		if err != nil {
+			return nil, err
+		}
+		historyList = append(historyList, history)
+	}
+	return historyList, nil
 }

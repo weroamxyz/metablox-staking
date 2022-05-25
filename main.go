@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 
+	foundationContract "github.com/MetaBloxIO/metablox-foundation-services/contract"
+	"github.com/metabloxStaking/contract"
 	"github.com/metabloxStaking/dao"
+	"github.com/metabloxStaking/foundationdao"
 	"github.com/metabloxStaking/routers"
 	"github.com/metabloxStaking/settings"
 )
@@ -15,11 +18,11 @@ func main() {
 		return
 	}
 
-	/*err = contract.Init()
+	err = contract.Init()
 	if err != nil {
 		fmt.Println(err)
 		return
-	}*/
+	}
 
 	err = dao.InitSql()
 	if err != nil {
@@ -27,5 +30,16 @@ func main() {
 		return
 	}
 
+	err = foundationdao.InitSql()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	err = foundationContract.Init()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	routers.Setup()
 }

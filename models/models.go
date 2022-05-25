@@ -1,5 +1,9 @@
 package models
 
+import (
+	foundationModels "github.com/MetaBloxIO/metablox-foundation-services/models"
+)
+
 const OrderTypePending = "Pending"
 const OrderTypeHolding = "Holding"
 const OrderTypeComplete = "Complete"
@@ -74,6 +78,26 @@ type PrincipalUpdates struct {
 	TotalPrincipal float64 `db:"TotalPrincipal"`
 }
 
+type MinerInfo struct {
+	ID           string   `db:"ID"`
+	Name         string   `db:"Name"`
+	SSID         *string  `db:"SSID"`
+	BSSID        *string  `db:"BSSID"`
+	CreateTime   string   `db:"CreateTime"`
+	Longitude    *float64 `db:"Longitude"`
+	Latitude     *float64 `db:"Latitude"`
+	OnlineStatus bool     `db:"OnlineStatus"`
+	MiningPower  *float64 `db:"MiningPower"`
+}
+
+type SeedExchange struct {
+	VcID         string  `db:"VcID"`
+	UserDID      string  `db:"UserDID"`
+	ExchangeRate float64 `db:"ExchangeRate"`
+	Amount       float64 `db:"Amount"`
+	CreateTime   string  `db:"CreateTime"`
+}
+
 type StakingRecord struct {
 	OrderID           string  `db:"OrderID"`
 	ProductID         string  `db:"ProductID"`
@@ -97,6 +121,11 @@ type ProductDetails struct {
 	LockUpPeriod   int     `db:"LockUpPeriod"`
 	CurrentAPY     float64
 	Status         bool `db:"Status"`
+}
+
+type SeedInfo struct {
+	ID     string
+	Amount float64
 }
 
 type OrderInterestInfo struct {
@@ -138,6 +167,20 @@ type RedeemOrderOuput struct {
 	TXHash         string
 }
 
+type SeedExchangeInput struct {
+	DID              string //placeholder
+	WalletAddress    string
+	SeedPresentation foundationModels.VerifiablePresentation
+	PublicKeyString  []byte
+}
+
+type SeedExchangeOutput struct {
+	Amount       float64
+	TxHash       string
+	TxTime       string
+	ExchangeRate float64
+}
+
 func NewOrder() *Order {
 	return &Order{}
 }
@@ -158,12 +201,24 @@ func NewOrderInterest() *OrderInterest {
 	return &OrderInterest{}
 }
 
+func NewMinerInfo() *MinerInfo {
+	return &MinerInfo{}
+}
+
+func NewSeedExchange() *SeedExchange {
+	return &SeedExchange{}
+}
+
 func NewStakingRecord() *StakingRecord {
 	return &StakingRecord{}
 }
 
 func NewProductDetails() *ProductDetails {
 	return &ProductDetails{}
+}
+
+func NewSeedInfo() *SeedInfo {
+	return &SeedInfo{}
 }
 
 func NewCreateOrderInput() *CreateOrderInput {
@@ -188,4 +243,24 @@ func NewOrderInterestInfo() *OrderInterestInfo {
 
 func NewRedeemOrderOutput() *RedeemOrderOuput {
 	return &RedeemOrderOuput{}
+}
+
+func NewSeedExchangeInput() *SeedExchangeInput {
+	return &SeedExchangeInput{}
+}
+
+func NewSeedExchangeOutput() *SeedExchangeOutput {
+	return &SeedExchangeOutput{}
+}
+
+//need to convert SeedInfo portion of presentation from a map to a struct.
+//This should most likely be done in foundation service with the rest of the conversions,
+//but I implemented it here to make the system work. In the future, this can be
+//removed once the foundation service has implemented SeedInfo VCs
+func ConvertCredentialSubject(vc *foundationModels.VerifiableCredential) {
+	subjectMap := vc.CredentialSubject.(map[string]interface{})
+	seedInfo := NewSeedInfo()
+	seedInfo.ID = subjectMap["id"].(string)
+	seedInfo.Amount = subjectMap["amount"].(float64)
+	vc.CredentialSubject = *seedInfo
 }

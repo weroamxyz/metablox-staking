@@ -20,5 +20,11 @@ func Setup() {
 	r.GET("/staking/interest/:id", controllers.GetOrderInterestHandler)
 	r.POST("/staking/redeem/full/:id", controllers.RedeemOrderHandler)
 	r.POST("/staking/redeem/interest/:id", controllers.RedeemInterestHandler)
+
+	r.GET("/mining/minerlist", controllers.GetMinerListHandler)
+	r.GET("/mining/miner", controllers.GetMinerByIDHandler)
+	r.GET("/mining/exchangerate", controllers.GetExchangeRateHandler)
+	r.GET("/mining/rewardhistory/:did", controllers.GetRewardHistoryHandler)
+	r.POST("/mining/exchange", controllers.ExchangeSeedHandler)
 	r.Run(":8889")
 }

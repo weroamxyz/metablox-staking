@@ -30,10 +30,11 @@ type StakingProduct struct {
 	LockUpPeriod   int     `db:"LockUpPeriod" json:"lockUpPeriod"`
 	DefaultAPY     float64 `db:"DefaultAPY"`
 	CurrentAPY     float64 `json:"currentAPY"`
-	CreateDate     string  `db:"CreateDate"`
-	StartDate      string  `db:"StartDate"`
+	CreateDate     string  `db:"CreateDate" validate:"required,datetime=2006-01-02 15:04:05"`
+	StartDate      string  `db:"StartDate" validate:"required,datetime=2006-01-02 15:04:05"`
 	Term           int     `db:"Term"`
 	BurnedInterest float64 `db:"BurnedInterest"`
+	NextProductID  *string `db:"NextProductID"`
 	Status         bool    `db:"Status" json:"status"`
 }
 
@@ -52,7 +53,7 @@ type TXInfo struct {
 	Principal      float64 `db:"Principal"`
 	Interest       float64 `db:"Interest"`
 	UserAddress    string  `db:"UserAddress"`
-	CreateDate     string  `db:"CreateDate"`
+	CreateDate     string  `db:"CreateDate" validate:"required,datetime=2006-01-02 15:04:05"`
 	RedeemableTime string  `db:"RedeemableTime"`
 }
 

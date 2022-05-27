@@ -60,6 +60,10 @@ func GetProductInfoByID(productID string) (*models.StakingProduct, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = validate.Struct(product)
+	if err != nil {
+		return nil, err
+	}
 
 	return product, nil
 }
@@ -75,6 +79,10 @@ func GetAllProductInfo() ([]*models.StakingProduct, error) {
 	for rows.Next() {
 		product := models.NewStakingProduct()
 		err = rows.StructScan(product)
+		if err != nil {
+			return nil, err
+		}
+		err = validate.Struct(product)
 		if err != nil {
 			return nil, err
 		}
@@ -244,6 +252,54 @@ func RedeemInterestByOrderID(orderID string) error {
 		return err
 	}
 	return nil
+}
+
+func GetHoldingOrders() ([]*models.Order, error) {
+	var orders []*models.Order
+	sqlStr := `select * from Orders where Type = 'Holding'`
+	rows, err := SqlDB.Queryx(sqlStr)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		order := models.NewOrder()
+		err = rows.StructScan(order)
+		if err != nil {
+			logger.Warn(err)
+			continue
+		}
+		err = validate.Struct(order)
+		if err != nil {
+			logger.Warn(err)
+			continue
+		}
+		orders = append(orders, order)
+	}
+	return orders, nil
+}
+
+func GetOrdersByProductID(productID string) ([]*models.Order, error) {
+	var orders []*models.Order
+	sqlStr := `select * from Orders where ProductID = ? and Type = 'Holding'`
+	rows, err := SqlDB.Queryx(sqlStr, productID)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		order := models.NewOrder()
+		err = rows.StructScan(order)
+		if err != nil {
+			logger.Warn(err)
+			continue
+		}
+		err = validate.Struct(order)
+		if err != nil {
+			logger.Warn(err)
+			continue
+		}
+		orders = append(orders, order)
+	}
+	return orders, nil
 }
 
 func GetOrderByID(orderID string) (*models.Order, error) {
@@ -461,9 +517,13 @@ func UpdateOrderAccumulatedInterest(orderID string, accumulatedInterest float64)
 	return err
 }
 
-func InsertProductHistory(orderID string, productID string) error {
-	sqlStr := `insert into PrincipalUpdates (OrderID, ProductID) values (?, ?)`
-	_, err := SqlDB.Exec(sqlStr, orderID, productID)
+func InsertProductHistory(history *models.ProductHistory) error {
+	err := validate.Struct(history)
+	if err != nil {
+		return err
+	}
+	sqlStr := `insert into PrincipalUpdates (OrderID, ProductID, CreateDate) values (:OrderID, :ProductID, :CreateDate)`
+	_, err = SqlDB.NamedExec(sqlStr, history)
 	return err
 }
 
@@ -488,4 +548,29 @@ func GetProductHistory(orderID string) ([]*models.ProductHistory, error) {
 		historyList = append(historyList, history)
 	}
 	return historyList, nil
+}
+
+func GetActiveOrdersProductIDs() ([]string, error) {
+	var ids []string
+	sqlStr := `select distinct ProductID from Orders where Type = 'Holding'`
+	rows, err := SqlDB.Queryx(sqlStr)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		id := new(string)
+		err := rows.Scan(id)
+		if err != nil {
+			logger.Warn(err)
+			continue
+		}
+		ids = append(ids, *id)
+	}
+	return ids, nil
+}
+
+func UpdateActiveOrdersProductID(oldProductID string, newProductID string) error {
+	sqlStr := `update Orders set ProductID = ? where ProductID = ? and Type = 'Holding'`
+	_, err := SqlDB.Exec(sqlStr, newProductID, oldProductID)
+	return err
 }

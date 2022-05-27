@@ -33,7 +33,6 @@ func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal float64)
 }
 
 func GetAllOrderInterest(orderID string, until time.Time) ([]*models.OrderInterest, error) {
-	// TODO: maybe update product history?
 	targetTime := TruncateToHour(until.In(time.UTC))
 	historyList, err := dao.GetProductHistory(orderID)
 	if err != nil {
@@ -160,4 +159,77 @@ func TruncateToHour(dateTime time.Time) time.Time {
 		logger.Warn(err.Error())
 	}
 	return result
+}
+
+func StartHourlyTimer() {
+	go func() {
+		for {
+			currentTime := TruncateToHour(time.Now().In(time.UTC))
+			ok := true
+
+			err := updateExpiredProducts(currentTime)
+			if err != nil {
+				logger.Warn(err)
+				ok = false
+			}
+
+			// 2. update order interest for all active orders
+			if ok {
+				orders, err := dao.GetHoldingOrders()
+				if err != nil {
+					logger.Warn(err)
+				}
+				for _, order := range orders {
+					_, err = GetAllOrderInterest(order.OrderID, currentTime)
+					if err != nil {
+						logger.Warn(err)
+					}
+				}
+			}
+
+			nextHour := currentTime.Add(time.Hour)
+			timer := time.NewTimer(nextHour.Sub(time.Now()))
+			<-timer.C
+		}
+	}()
+	return
+}
+
+// updateExpiredProducts updates the ProductHistory table, then the ProductID column of associated Orders
+func updateExpiredProducts(currentTime time.Time) error {
+	productIDs, err := dao.GetActiveOrdersProductIDs()
+	if err != nil {
+		return err
+	}
+	for _, productID := range productIDs {
+		product, err := dao.GetProductInfoByID(productID)
+		if err != nil {
+			return err
+		}
+		startTime, _ := time.Parse("2006-01-02 15:04:05", product.StartDate)
+		startTime = TruncateToHour(startTime.In(time.UTC))
+		endTime := startTime.Add(time.Hour * 24 * time.Duration(product.LockUpPeriod))
+		if !currentTime.Before(endTime) && product.NextProductID != nil {
+			// update product history
+			orders, err := dao.GetOrdersByProductID(productID)
+			if err != nil {
+				return err
+			}
+			for _, order := range orders {
+				history := models.NewProductHistory()
+				history.OrderID = order.OrderID
+				history.ProductID = *product.NextProductID
+				history.CreateDate = currentTime.Format("2006-01-02 15:04:05")
+				err = dao.InsertProductHistory(history)
+				if err != nil {
+					return err
+				}
+			}
+			err = dao.UpdateActiveOrdersProductID(productID, *product.NextProductID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

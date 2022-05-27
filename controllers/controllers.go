@@ -249,7 +249,7 @@ func GetTransactionsByUserDIDHandler(c *gin.Context) {
 
 func GetOrderInterestHandler(c *gin.Context) {
 	orderID := c.Param("id")
-	transactions, err := interest.GetOrderInterestList(orderID, time.Now())
+	transactions, err := interest.GetAllOrderInterest(orderID, time.Now())
 	if err != nil {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return

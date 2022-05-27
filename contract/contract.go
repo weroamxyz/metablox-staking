@@ -4,21 +4,28 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"math/big"
+	"strings"
 
+	"github.com/MetaBloxIO/metablox-foundation-services/registry"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/metabloxStaking/errval"
+	"github.com/metabloxStaking/models"
 	"github.com/metabloxStaking/stakingContract"
 )
 
-const deployedContract = "0xc70A4185af369cfF34507Fe14b651fbEe53fed88"
+const deployedStakingContract = "0xc70A4185af369cfF34507Fe14b651fbEe53fed88"
+const deployedRegistryContract = "0xf880b97Be7c402Cc441895bF397c3f865BfE1Cb2"
 const network = "wss://ws.s0.b.hmny.io"
 
 var client *ethclient.Client
 
-var instance *stakingContract.StakingContract
-var contractAddress common.Address
+var stakingInstance *stakingContract.StakingContract
+var registryInstance *registry.Registry
 
 var ownerKey *ecdsa.PrivateKey
 
@@ -28,14 +35,31 @@ func Init() error {
 	if err != nil {
 		return err
 	}
-	contractAddress = common.HexToAddress(deployedContract)
-	instance, err = stakingContract.NewStakingContract(contractAddress, client)
+	stakingContractAddress := common.HexToAddress(deployedStakingContract)
+	stakingInstance, err = stakingContract.NewStakingContract(stakingContractAddress, client)
+	if err != nil {
+		return err
+	}
+
+	registryContractAddress := common.HexToAddress(deployedRegistryContract)
+	registryInstance, err = registry.NewRegistry(registryContractAddress, client)
 	if err != nil {
 		return err
 	}
 
 	ownerKey, _ = crypto.HexToECDSA("dbbd9634560466ac9713e0cf10a575456c8b55388bce0c044f33fc6074dc5ae6")
 
+	return nil
+}
+
+func CheckForRegisteredDID(did string) error {
+	didAccount, err := registryInstance.Dids(nil, did)
+	if err != nil {
+		return err
+	}
+	if didAccount.Hex() == "0x0000000000000000000000000000000000000000" {
+		return errval.ErrDIDNotRegistered
+	}
 	return nil
 }
 
@@ -73,7 +97,7 @@ func TransferTokens(toAddress common.Address, value int) (string, error) {
 		return "", err
 	}
 
-	tx, err := instance.Transfer(auth, toAddress, bigValue)
+	tx, err := stakingInstance.Transfer(auth, toAddress, bigValue)
 	if err != nil {
 		return "", nil
 	}
@@ -81,8 +105,45 @@ func TransferTokens(toAddress common.Address, value int) (string, error) {
 	return tx.Hash().Hex(), nil
 }
 
-func CheckIfTransactionCompleted(txHash string) (bool, error) { //todo: full implementation
-	return true, nil
+func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
+	tx, pending, err := client.TransactionByHash(context.Background(), common.HexToHash(txHash))
+	if err != nil {
+		return err
+	}
+	if pending {
+		return errval.ErrTransactionPending
+	}
+
+	msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()), big.NewInt(0))
+	if err != nil {
+		return err
+	}
+
+	if msg.From().Hex() != order.UserAddress {
+		return errval.ErrAddressComparisonFail
+	}
+
+	receipt, err := client.TransactionReceipt(context.Background(), common.HexToHash(txHash))
+	if err != nil {
+		return err
+	}
+
+	contractAbi, err := abi.JSON(strings.NewReader(string(stakingContract.StakingContractABI)))
+	if err != nil {
+		return err
+	}
+
+	events, err := contractAbi.Unpack("Transfer", receipt.Logs[0].Data)
+	if err != nil {
+		return err
+	}
+
+	amount := events[0].(*big.Int)
+	if amount.Int64() != int64(order.Amount) { //todo: proper type conversion
+		return errval.ErrAmountComparisonFail
+	}
+
+	return nil
 }
 
 func RedeemOrder() string { //todo: full implementation

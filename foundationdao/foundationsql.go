@@ -56,7 +56,7 @@ func GetAllMinerInfo() ([]*models.MinerInfo, error) {
 	}
 
 	for rows.Next() {
-		miner := models.NewMinerInfo()
+		miner := models.CreateMinerInfo()
 		err = rows.StructScan(miner)
 		if err != nil {
 			return nil, err
@@ -67,7 +67,7 @@ func GetAllMinerInfo() ([]*models.MinerInfo, error) {
 }
 
 func GetMinerInfoByID(id string) (*models.MinerInfo, error) {
-	miner := models.NewMinerInfo()
+	miner := models.CreateMinerInfo()
 	sqlStr := "select * from MinerInfo where ID = ?"
 	err := SqlDB.Get(miner, sqlStr, id)
 	if err != nil {
@@ -86,7 +86,7 @@ func GetSeedHistory(did string) ([]*models.SeedExchange, error) {
 	}
 
 	for rows.Next() {
-		exchange := models.NewSeedExchange()
+		exchange := models.CreateSeedExchange()
 		err = rows.StructScan(exchange)
 		if err != nil {
 			return nil, err
@@ -100,4 +100,11 @@ func UploadSeedExchange(exchange *models.SeedExchange) error {
 	sqlStr := "insert into SeedExchangeHistory (VcID, UserDID, ExchangeRate, Amount) values (:VcID, :UserDID, :ExchangeRate, :Amount)"
 	_, err := SqlDB.NamedExec(sqlStr, exchange)
 	return err
+}
+
+func GetExchangeRate(id string) (float64, error) {
+	var rate float64
+	sqlStr := "select ExchangeRate from ExchangeRate where ID = ?"
+	err := SqlDB.Get(&rate, sqlStr, id)
+	return rate, err
 }

@@ -29,7 +29,6 @@ type StakingProduct struct {
 	MinRedeemValue int     `db:"MinRedeemValue" json:"minRedeemValue"`
 	LockUpPeriod   int     `db:"LockUpPeriod" json:"lockUpPeriod"`
 	DefaultAPY     float64 `db:"DefaultAPY"`
-	CurrentAPY     float64 `json:"currentAPY"`
 	CreateDate     string  `db:"CreateDate" validate:"required,datetime=2006-01-02 15:04:05"`
 	StartDate      string  `db:"StartDate" validate:"required,datetime=2006-01-02 15:04:05"`
 	Term           int     `db:"Term"`

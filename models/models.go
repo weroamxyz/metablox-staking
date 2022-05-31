@@ -52,16 +52,17 @@ type TXInfo struct {
 	Principal      float64 `db:"Principal"`
 	Interest       float64 `db:"Interest"`
 	UserAddress    string  `db:"UserAddress"`
-	CreateDate     string  `db:"CreateDate" validate:"required,datetime=2006-01-02 15:04:05"`
-	RedeemableTime string  `db:"RedeemableTime"`
+	CreateDate     string  `db:"CreateDate" validate:"omitempty,datetime=2006-01-02 15:04:05"`
+	RedeemableTime string  `db:"RedeemableTime" validate:"required,datetime=2006-01-02 15:04:05"`
 }
 
 type OrderInterest struct {
-	ID           string  `db:"ID"`
-	OrderID      string  `db:"OrderID"`
-	Time         string  `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
-	APY          float64 `db:"APY"`
-	InterestGain float64 `db:"InterestGain"`
+	ID                string  `db:"ID"`
+	OrderID           string  `db:"OrderID"`
+	Time              string  `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
+	APY               float64 `db:"APY"`
+	InterestGain      float64 `db:"InterestGain"`
+	TotalInterestGain float64 `db:"TotalInterestGain"`
 }
 
 type PaymentInfo struct {

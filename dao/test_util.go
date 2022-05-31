@@ -2,6 +2,7 @@ package dao
 
 import (
 	"fmt"
+	"github.com/go-playground/validator/v10"
 	logger "github.com/sirupsen/logrus"
 	"io/ioutil"
 
@@ -15,13 +16,18 @@ var sqlPort = "3306"
 var sqlDBName = "boundarypaytest"
 
 const SQLCreateScript = "../dao/create_test_tables.sql"
+const SQLInsertScript = "../dao/insert_test_data.sql"
 const SQLDeleteScript = "../dao/delete_test_tables.sql"
 
 func InitTestDB() error {
+	validate = validator.New()
 	if err := connectTestDB(); err != nil {
 		return err
 	}
-	if err := executeTableCreateScript(); err != nil {
+	if err := executeSQLScript(SQLCreateScript); err != nil {
+		return err
+	}
+	if err := executeSQLScript(SQLInsertScript); err != nil {
 		return err
 	}
 	return nil
@@ -29,7 +35,7 @@ func InitTestDB() error {
 
 func CleanupTestDB() {
 	defer SqlDB.Close()
-	err := executeTableDeleteScript()
+	err := executeSQLScript(SQLDeleteScript)
 	if err != nil {
 		logger.Warn(err.Error())
 	}
@@ -50,20 +56,8 @@ func connectTestDB() (err error) {
 	return nil
 }
 
-func executeTableCreateScript() error {
-	scriptBytes, err := ioutil.ReadFile(SQLCreateScript)
-	if err != nil {
-		return err
-	}
-	_, err = SqlDB.Exec(string(scriptBytes))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func executeTableDeleteScript() error {
-	scriptBytes, err := ioutil.ReadFile(SQLDeleteScript)
+func executeSQLScript(path string) error {
+	scriptBytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}

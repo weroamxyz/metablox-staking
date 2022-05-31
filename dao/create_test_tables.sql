@@ -27,7 +27,7 @@ DROP TABLE IF EXISTS `orderinterest`;
 CREATE TABLE `orderinterest` (
   `ID` int NOT NULL AUTO_INCREMENT,
   `OrderID` int NOT NULL,
-  `Time` datetime NOT NULL,
+  `Time` timestamp(3) NOT NULL,
   `APY` float NOT NULL,
   `InterestGain` float NOT NULL,
   `TotalInterestGain` float NOT NULL,
@@ -65,9 +65,9 @@ DROP TABLE IF EXISTS `principalupdates`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `principalupdates` (
-  `ID` int NOT NULL,
+  `ID` int NOT NULL AUTO_INCREMENT,
   `ProductID` int NOT NULL,
-  `Time` datetime NOT NULL,
+  `Time` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `TotalPrincipal` float NOT NULL,
   PRIMARY KEY (`ID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

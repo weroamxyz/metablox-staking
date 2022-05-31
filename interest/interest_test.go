@@ -2,8 +2,10 @@ package interest
 
 import (
 	"fmt"
+	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 	"github.com/stretchr/testify/assert"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -61,9 +63,36 @@ func TestCalculateCurrentAPY(t *testing.T) {
 }
 
 func TestGetOrderInterestList(t *testing.T) {
+	err := dao.InitTestDB()
+	assert.Nil(t, err)
+	defer dao.CleanupTestDB()
 
-}
+	order := &models.Order{
+		ProductID: "1",
+		UserDID:   "test",
+		Type:      "Pending",
+		Amount:    400,
+	}
+	id, err := dao.CreateOrder(order)
+	assert.Nil(t, err)
 
-func TestGetAllOrderInterest(t *testing.T) {
+	err = dao.InsertPrincipalUpdate(order.ProductID, order.Amount)
+	assert.Nil(t, err)
 
+	txInfo := &models.TXInfo{
+		OrderID:        strconv.Itoa(id),
+		TXCurrencyType: "",
+		TXType:         "BuyIn",
+		TXHash:         nil,
+		Principal:      order.Amount,
+		Interest:       0,
+		UserAddress:    "",
+		RedeemableTime: "2022-01-01 00:00:00",
+	}
+	err = dao.SubmitBuyin(txInfo)
+	assert.Nil(t, err)
+
+	result, err := GetOrderInterestList(strconv.Itoa(id), time.Now())
+	assert.Nil(t, err)
+	assert.NotNil(t, result)
 }

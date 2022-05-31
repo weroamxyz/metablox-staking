@@ -1,6 +1,8 @@
 package interest
 
 import (
+	"errors"
+	"fmt"
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
@@ -37,12 +39,12 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 
 	order, err := dao.GetOrderByID(orderID)
 	if err != nil {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("failed to get order, %s", err.Error()))
 	}
 
 	product, err := dao.GetProductInfoByID(order.ProductID)
 	if err != nil {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("failed to get product, %s", err.Error()))
 	}
 
 	principalUpdates, err := dao.GetPrincipalUpdates(product.ID)
@@ -61,7 +63,7 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 	if len(interestList) == 0 {
 		orderCreateDateStr, err := dao.GetOrderCreateDate(orderID)
 		if err != nil {
-			return nil, err
+			return nil, errors.New(fmt.Sprintf("failed to get txInfo, %s", err.Error()))
 		}
 		latestTime, _ = time.Parse("2006-01-02 15:04:05", orderCreateDateStr)
 	} else {
@@ -100,21 +102,25 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 	}
 
 	if len(interestToAdd) > 0 {
-		err = dao.InsertOrderInterestList(interestToAdd)
-		if err != nil {
-			return nil, err
-		}
-		interestList = append(interestList, interestToAdd...)
-
-		// set new accumulated interest value
 		sum := 0.0
 		for _, interest := range interestList {
 			sum += interest.InterestGain
 		}
+		for _, interest := range interestToAdd {
+			sum += interest.InterestGain
+			interest.TotalInterestGain = sum
+		}
+
+		err = dao.InsertOrderInterestList(interestToAdd)
+		if err != nil {
+			return nil, err
+		}
+
 		err = dao.UpdateOrderAccumulatedInterest(orderID, sum)
 		if err != nil {
 			return nil, err
 		}
+		interestList = append(interestList, interestToAdd...)
 	}
 	return interestList, nil
 }

@@ -483,7 +483,8 @@ func GetPrincipalUpdates(productID string) ([]*models.PrincipalUpdate, error) {
 }
 
 func InsertOrderInterestList(orderInterestList []*models.OrderInterest) error {
-	sqlStr := `insert into OrderInterest (OrderID, Time, APY, InterestGain) values (:OrderID, :Time, :APY, :InterestGain)`
+	sqlStr := `insert into OrderInterest (OrderID, Time, APY, InterestGain, TotalInterestGain) 
+				values (:OrderID, :Time, :APY, :InterestGain, :TotalInterestGain)`
 	_, err := SqlDB.NamedExec(sqlStr, orderInterestList)
 	return err
 }

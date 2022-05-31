@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/metabloxStaking/interest"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/metabloxStaking/dao"
@@ -29,6 +30,8 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+
+	interest.StartHourlyTimer()
 
 	routers.Setup()
 }

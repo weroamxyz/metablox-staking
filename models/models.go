@@ -131,12 +131,6 @@ type PrincipalUpdate struct {
 	TotalPrincipal float64 `db:"TotalPrincipal"`
 }
 
-type ProductHistory struct {
-	OrderID    string `db:"ID"`
-	ProductID  string `db:"ProductID"`
-	CreateDate string `db:"CreateDate" validate:"required,datetime=2006-01-02 15:04:05"`
-}
-
 func NewOrder() *Order {
 	return &Order{}
 }
@@ -195,12 +189,4 @@ func NewPrincipalUpdate() *PrincipalUpdate {
 
 func NewPrincipalUpdateList() []*PrincipalUpdate {
 	return []*PrincipalUpdate{}
-}
-
-func NewProductHistory() *ProductHistory {
-	return &ProductHistory{}
-}
-
-func NewProductHistoryList() []*ProductHistory {
-	return []*ProductHistory{}
 }

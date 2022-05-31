@@ -32,38 +32,15 @@ func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal float64)
 	return (A / totalPrincipal) * (360.0 / N)
 }
 
-func GetAllOrderInterest(orderID string, until time.Time) ([]*models.OrderInterest, error) {
+func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInterest, error) {
 	targetTime := TruncateToHour(until.In(time.UTC))
-	historyList, err := dao.GetProductHistory(orderID)
+
+	order, err := dao.GetOrderByID(orderID)
 	if err != nil {
 		return nil, err
 	}
 
-	orderInterestList := make([]*models.OrderInterest, 0)
-	for _, productHistory := range historyList {
-		product, err := dao.GetProductInfoByID(productHistory.ProductID)
-		if err != nil {
-			return nil, err
-		}
-		startDate, _ := time.Parse("2006-01-02 15:04:05", productHistory.CreateDate)
-		productStartDate, _ := time.Parse("2006-01-02 15:04:05", product.StartDate)
-		productStartDate = TruncateToHour(productStartDate.In(time.UTC))
-		endDate := productStartDate.Add(time.Hour * 24 * time.Duration(product.LockUpPeriod))
-		if targetTime.Before(endDate) {
-			endDate = targetTime
-		}
-
-		interestToAdd, err := GetOrderInterestList(orderID, product, startDate, endDate)
-		if err != nil {
-			return nil, err
-		}
-		orderInterestList = append(orderInterestList, interestToAdd...)
-	}
-	return orderInterestList, nil
-}
-
-func GetOrderInterestList(orderID string, product *models.StakingProduct, from time.Time, until time.Time) ([]*models.OrderInterest, error) {
-	order, err := dao.GetOrderByID(orderID)
+	product, err := dao.GetProductInfoByID(order.ProductID)
 	if err != nil {
 		return nil, err
 	}
@@ -74,31 +51,39 @@ func GetOrderInterestList(orderID string, product *models.StakingProduct, from t
 	}
 	principalIndex := 0
 
-	interestList, err := dao.GetSortedOrderInterestListUntilDate(orderID, until.Format("2006-01-02 15:04:05"))
+	interestList, err := dao.GetSortedOrderInterestListUntilDate(orderID, targetTime.Format("2006-01-02 15:04:05"))
 	if err != nil {
 		return nil, err
 	}
 
+	// latestTime will be set to either the latest orderInterest + 1 hour, or order date + 1 hour if there is no orderInterest yet
 	var latestTime time.Time
 	if len(interestList) == 0 {
-		latestTime = from
-	} else {
-		latestOrderInterest := interestList[len(interestList)-1]
-		latestTime, err = time.Parse("2006-01-02 15:04:05", latestOrderInterest.Time)
+		orderCreateDateStr, err := dao.GetOrderCreateDate(orderID)
 		if err != nil {
 			return nil, err
 		}
+		latestTime, _ = time.Parse("2006-01-02 15:04:05", orderCreateDateStr)
+	} else {
+		latestOrderInterest := interestList[len(interestList)-1]
+		latestTime, _ = time.Parse("2006-01-02 15:04:05", latestOrderInterest.Time)
 	}
-
 	latestTime = TruncateToHour(latestTime.In(time.UTC))
-	if latestTime.Sub(until) >= 0 {
-		return interestList, nil
-	}
+	latestTime = latestTime.Add(time.Hour)
 
 	// generate orderInterest until it reaches the current hour
 	interestToAdd := models.NewOrderInterestList()
-	for until.After(latestTime) {
-		latestTime = latestTime.Add(time.Hour)
+	for targetTime.After(latestTime) {
+		if isProductExpired(product, latestTime) {
+			if product.NextProductID == nil {
+				break
+			}
+			product, err = dao.GetProductInfoByID(*product.NextProductID)
+			if err != nil {
+				logger.Warn(err)
+				break
+			}
+		}
 		// calculate numbers at given time
 		totalPrincipal := 0.0
 		principalIndex = findMostRecentPrincipalUpdate(principalUpdates, latestTime)
@@ -109,22 +94,27 @@ func GetOrderInterestList(orderID string, product *models.StakingProduct, from t
 		if err != nil {
 			return nil, err
 		}
-		interestToAdd = append(interestToAdd, interest)
-	}
-	err = dao.InsertOrderInterestList(interestToAdd)
-	if err != nil {
-		return nil, err
-	}
-	interestList = append(interestList, interestToAdd...)
 
-	// set new accumulated interest value
-	sum := 0.0
-	for _, interest := range interestList {
-		sum += interest.InterestGain
+		interestToAdd = append(interestToAdd, interest)
+		latestTime = latestTime.Add(time.Hour)
 	}
-	err = dao.UpdateOrderAccumulatedInterest(orderID, sum)
-	if err != nil {
-		return nil, err
+
+	if len(interestToAdd) > 0 {
+		err = dao.InsertOrderInterestList(interestToAdd)
+		if err != nil {
+			return nil, err
+		}
+		interestList = append(interestList, interestToAdd...)
+
+		// set new accumulated interest value
+		sum := 0.0
+		for _, interest := range interestList {
+			sum += interest.InterestGain
+		}
+		err = dao.UpdateOrderAccumulatedInterest(orderID, sum)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return interestList, nil
 }
@@ -180,7 +170,7 @@ func StartHourlyTimer() {
 					logger.Warn(err)
 				}
 				for _, order := range orders {
-					_, err = GetAllOrderInterest(order.OrderID, currentTime)
+					_, err = GetOrderInterestList(order.OrderID, currentTime)
 					if err != nil {
 						logger.Warn(err)
 					}
@@ -206,25 +196,7 @@ func updateExpiredProducts(currentTime time.Time) error {
 		if err != nil {
 			return err
 		}
-		startTime, _ := time.Parse("2006-01-02 15:04:05", product.StartDate)
-		startTime = TruncateToHour(startTime.In(time.UTC))
-		endTime := startTime.Add(time.Hour * 24 * time.Duration(product.LockUpPeriod))
-		if !currentTime.Before(endTime) && product.NextProductID != nil {
-			// update product history
-			orders, err := dao.GetOrdersByProductID(productID)
-			if err != nil {
-				return err
-			}
-			for _, order := range orders {
-				history := models.NewProductHistory()
-				history.OrderID = order.OrderID
-				history.ProductID = *product.NextProductID
-				history.CreateDate = currentTime.Format("2006-01-02 15:04:05")
-				err = dao.InsertProductHistory(history)
-				if err != nil {
-					return err
-				}
-			}
+		if isProductExpired(product, currentTime) {
 			err = dao.UpdateActiveOrdersProductID(productID, *product.NextProductID)
 			if err != nil {
 				return err
@@ -232,4 +204,11 @@ func updateExpiredProducts(currentTime time.Time) error {
 		}
 	}
 	return nil
+}
+
+func isProductExpired(product *models.StakingProduct, currentTime time.Time) bool {
+	startTime, _ := time.Parse("2006-01-02 15:04:05", product.StartDate)
+	startTime = TruncateToHour(startTime.In(time.UTC))
+	endTime := startTime.Add(time.Hour * 24 * time.Duration(product.LockUpPeriod))
+	return !currentTime.Before(endTime)
 }

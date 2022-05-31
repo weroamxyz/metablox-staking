@@ -517,39 +517,6 @@ func UpdateOrderAccumulatedInterest(orderID string, accumulatedInterest float64)
 	return err
 }
 
-func InsertProductHistory(history *models.ProductHistory) error {
-	err := validate.Struct(history)
-	if err != nil {
-		return err
-	}
-	sqlStr := `insert into PrincipalUpdates (OrderID, ProductID, CreateDate) values (:OrderID, :ProductID, :CreateDate)`
-	_, err = SqlDB.NamedExec(sqlStr, history)
-	return err
-}
-
-func GetProductHistory(orderID string) ([]*models.ProductHistory, error) {
-	sqlStr := `select * from ProductHistory where OrderID = ?`
-	rows, err := SqlDB.Queryx(sqlStr, orderID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	historyList := models.NewProductHistoryList()
-	for rows.Next() {
-		history := models.NewProductHistory()
-		err := rows.StructScan(history)
-		if err != nil {
-			return nil, err
-		}
-		err = validate.Struct(history)
-		if err != nil {
-			return nil, err
-		}
-		historyList = append(historyList, history)
-	}
-	return historyList, nil
-}
-
 func GetActiveOrdersProductIDs() ([]string, error) {
 	var ids []string
 	sqlStr := `select distinct ProductID from Orders where Type = 'Holding'`

@@ -20,18 +20,6 @@ func GetProductInfoByIDHandler(c *gin.Context) {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
-	var totalPrincipal float64
-	update, err := dao.GetLatestPrincipalUpdate(productID)
-	if err == nil {
-		totalPrincipal = update.TotalPrincipal
-	} else if err == sql.ErrNoRows {
-		totalPrincipal = 0.0
-	} else {
-		ResponseErrorWithMsg(c, CodeError, err.Error())
-		return
-	}
-	product.CurrentAPY = interest.CalculateCurrentAPY(product, totalPrincipal)
-
 	ResponseSuccess(c, product)
 }
 
@@ -40,19 +28,6 @@ func GetAllProductInfoHandler(c *gin.Context) {
 	if err != nil {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
-	}
-	var totalPrincipal float64
-	for _, product := range products {
-		update, err := dao.GetLatestPrincipalUpdate(product.ID)
-		if err == nil {
-			totalPrincipal = update.TotalPrincipal
-		} else if err == sql.ErrNoRows {
-			totalPrincipal = 0.0
-		} else {
-			ResponseErrorWithMsg(c, CodeError, err.Error())
-			return
-		}
-		product.CurrentAPY = interest.CalculateCurrentAPY(product, totalPrincipal)
 	}
 	ResponseSuccess(c, products)
 }
@@ -249,7 +224,7 @@ func GetTransactionsByUserDIDHandler(c *gin.Context) {
 
 func GetOrderInterestHandler(c *gin.Context) {
 	orderID := c.Param("id")
-	transactions, err := interest.GetAllOrderInterest(orderID, time.Now())
+	transactions, err := dao.GetSortedOrderInterestListUntilDate(orderID, time.Now().Format("2006-01-02 15:04:05"))
 	if err != nil {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return

@@ -7,6 +7,8 @@ import (
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -37,7 +39,7 @@ func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal float64)
 }
 
 func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInterest, error) {
-	targetTime := TruncateToHour(until.In(time.UTC))
+	targetTime := TruncateToHour(until)
 
 	order, err := dao.GetOrderByID(orderID)
 	if err != nil {
@@ -72,12 +74,12 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 		latestOrderInterest := interestList[len(interestList)-1]
 		latestTime, _ = time.Parse(timeFormat, latestOrderInterest.Time)
 	}
-	latestTime = TruncateToHour(latestTime.In(time.UTC))
+	latestTime = TruncateToHour(latestTime)
 	latestTime = latestTime.Add(time.Hour)
 
 	// generate orderInterest until it reaches the current hour
 	interestToAdd := models.NewOrderInterestList()
-	for targetTime.After(latestTime) {
+	for !targetTime.Before(latestTime) {
 		if isProductExpired(product, latestTime) {
 			if product.NextProductID == nil {
 				break
@@ -162,7 +164,7 @@ func TruncateToHour(dateTime time.Time) time.Time {
 func StartHourlyTimer() {
 	go func() {
 		for {
-			currentTime := TruncateToHour(time.Now().In(time.UTC))
+			currentTime := TruncateToHour(time.Now())
 			ok := true
 
 			err := updateExpiredProducts(currentTime)
@@ -216,7 +218,17 @@ func updateExpiredProducts(currentTime time.Time) error {
 
 func isProductExpired(product *models.StakingProduct, currentTime time.Time) bool {
 	startTime, _ := time.Parse(timeFormat, product.StartDate)
-	startTime = TruncateToHour(startTime.In(time.UTC))
+	startTime = TruncateToHour(startTime)
 	endTime := startTime.Add(time.Hour * 24 * time.Duration(product.LockUpPeriod))
 	return !currentTime.Before(endTime)
+}
+
+func FormatFloat(f float64) string {
+	// round to 6 decimal places after decimal point
+	truncated := strconv.FormatFloat(f, 'f', 6, 64)
+	// trim up to four trailing zeroes (to a minimum of 2 decimal places)
+	for i := 0; i < 4; i++ {
+		truncated = strings.TrimSuffix(truncated, "0")
+	}
+	return truncated
 }

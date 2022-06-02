@@ -1,7 +1,6 @@
 package interest
 
 import (
-	"fmt"
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 	"github.com/stretchr/testify/assert"
@@ -57,7 +56,7 @@ func TestCalculateCurrentAPY(t *testing.T) {
 				LockUpPeriod: tt.lockUpPeriod,
 				DefaultAPY:   tt.defaultAPY,
 			}
-			assert.Equal(t, tt.expected, fmt.Sprintf("%.6f", CalculateCurrentAPY(product, tt.totalPrincipal)))
+			assert.Equal(t, tt.expected, FormatFloat(CalculateCurrentAPY(product, tt.totalPrincipal)))
 		})
 	}
 }
@@ -92,7 +91,9 @@ func TestGetOrderInterestList(t *testing.T) {
 	err = dao.SubmitBuyin(txInfo)
 	assert.Nil(t, err)
 
-	result, err := GetOrderInterestList(strconv.Itoa(id), time.Now())
+	until := time.Now().Add(time.Hour)
+	result, err := GetOrderInterestList(strconv.Itoa(id), until)
 	assert.Nil(t, err)
-	assert.NotNil(t, result)
+	assert.Equal(t, 1, len(result))
+	assert.Equal(t, "11.574074", FormatFloat(result[0].InterestGain))
 }

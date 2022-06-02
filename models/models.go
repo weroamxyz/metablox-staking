@@ -70,13 +70,6 @@ type OrderInterest struct {
 	TotalInterestGain float64 `db:"TotalInterestGain"`
 }
 
-type PaymentInfo struct {
-	PaymentAddress string `db:"PaymentAddress"`
-	Tag            string `db:"Tag"`
-	CurrencyType   string `db:"CurrencyType"`
-	Network        string `db:"Network"`
-}
-
 type PrincipalUpdates struct {
 	ID             string  `db:"ID"`
 	ProductID      string  `db:"ProductID"`

@@ -7,10 +7,6 @@ import (
 
 func GetRewardHistory(c *gin.Context) (float64, error) {
 	userDID := c.Param("did")
-	err := validateDID(userDID)
-	if err != nil {
-		return 0, err
-	}
 
 	exchangeList, err := foundationdao.GetSeedHistory(userDID)
 	if err != nil {

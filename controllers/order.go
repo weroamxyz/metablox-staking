@@ -25,7 +25,12 @@ func CreateOrder(c *gin.Context) (*models.OrderOutput, error) {
 		return nil, errval.ErrBadDID
 	}
 
-	newOrder := models.NewOrder(input.ProductID, input.UserDID, models.OrderTypePending, "placeholder", input.Amount, input.UserAddress)
+	paymentAddress, err := dao.GetPaymentAddress(input.ProductID)
+	if err != nil {
+		return nil, err
+	}
+
+	newOrder := models.NewOrder(input.ProductID, input.UserDID, models.OrderTypePending, paymentAddress, input.Amount, input.UserAddress)
 
 	orderID, err := dao.CreateOrder(newOrder)
 	if err != nil {
@@ -46,7 +51,6 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 	}
 	redeemableTime, err := time.Parse("2006-01-02 15:04:05", redeemableDate)
 	if err != nil {
-		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return nil, err
 	}
 

@@ -1,14 +1,12 @@
 package controllers
 
 import (
-	"crypto/ecdsa"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/MetaBloxIO/metablox-foundation-services/presentations"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gin-gonic/gin"
 	"github.com/metabloxStaking/contract"
 	"github.com/metabloxStaking/errval"
@@ -23,20 +21,13 @@ func ExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 		return nil, err
 	}
 
-	err = validateDID(input.DID)
+	err = ValidateDID(input.DID)
 	if err != nil {
 		return nil, err
 	}
 
-	minerPubKey := new(ecdsa.PublicKey) //todo: get this from some source
-
-	holderPubKey, err := crypto.UnmarshalPubkey(input.PublicKeyString)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = presentations.VerifyVP(&input.SeedPresentation, holderPubKey, minerPubKey) //going to fail at the moment as we don't have all the info to do this verification
-	if err != nil {                                                                     //skip this error check to avoid failures until we can properly verify seed presentations
+	_, err = presentations.VerifyVP(&input.SeedPresentation) //going to fail at the moment as we don't have all the info to do this verification
+	if err != nil {                                          //skip this error check to avoid failures until we can properly verify seed presentations
 		//return nil, error
 	}
 
@@ -56,8 +47,8 @@ func ExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 		return nil, err
 	}
 
-	vcID := strings.Split(seedVC.ID, "/")[4]            //should equal numerical ID
-	amount := seedInfo.Amount * placeholderExchangeRate //todo: may have to change calculation method
+	vcID := splitID[4] //should equal numerical ID
+	amount := exchangeValue
 
 	exchange := models.NewSeedExchange(vcID, seedInfo.ID, placeholderExchangeRate, amount)
 

@@ -61,6 +61,18 @@ func GetProductInfoByID(productID string) (*models.ProductDetails, error) {
 	return product, nil
 }
 
+func GetPaymentAddress(productID string) (string, error) {
+	var address string
+
+	sqlStr := "select PaymentAddress from StakingProducts where ID = ?"
+	err := SqlDB.Get(&address, sqlStr, productID)
+	if err != nil {
+		return "", err
+	}
+
+	return address, nil
+}
+
 func GetAllProductInfo() ([]*models.ProductDetails, error) {
 	var products []*models.ProductDetails
 	sqlStr := "select ID, ProductName, MinOrderValue, TopUpLimit, LockUpPeriod, Status, MinRedeemValue from StakingProducts"
@@ -309,33 +321,37 @@ func UploadTransaction(tx *models.TXInfo) error {
 }
 
 func SubmitBuyin(tx *models.TXInfo) error {
-	dbTX, err := SqlDB.Beginx()
+	dbtx, err := SqlDB.Beginx()
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		if err == nil {
+			dbtx.Commit()
+		} else {
+			dbtx.Rollback()
+		}
+	}()
+
 	sqlStr := "update Orders set Type = 'Holding' where OrderID = ?"
-	result, err := dbTX.Exec(sqlStr, tx.OrderID)
+	result, err := dbtx.Exec(sqlStr, tx.OrderID)
 	if err != nil {
-		dbTX.Rollback()
 		return err
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		dbTX.Rollback()
 		return err
 	}
 	if rows == 0 {
-		dbTX.Rollback()
 		return errval.ErrUpdateOrderStatus
 	}
 
 	sqlStr = "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :RedeemableTime)"
-	_, err = dbTX.NamedExec(sqlStr, tx)
+	_, err = dbtx.NamedExec(sqlStr, tx)
 	if err != nil {
-		dbTX.Rollback()
 		return err
 	}
-	dbTX.Commit()
 	return nil
 }
 

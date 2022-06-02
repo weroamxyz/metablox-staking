@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const timeFormat = "2006-01-02 15:04:05"
+
 func CalculateInterest() float64 { //placeholder
 	return 12.34
 }
@@ -53,7 +55,7 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 	}
 	principalIndex := 0
 
-	interestList, err := dao.GetSortedOrderInterestListUntilDate(orderID, targetTime.Format("2006-01-02 15:04:05"))
+	interestList, err := dao.GetSortedOrderInterestListUntilDate(orderID, targetTime.Format(timeFormat))
 	if err != nil {
 		return nil, err
 	}
@@ -65,10 +67,10 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("failed to get txInfo, %s", err.Error()))
 		}
-		latestTime, _ = time.Parse("2006-01-02 15:04:05", orderCreateDateStr)
+		latestTime, _ = time.Parse(timeFormat, orderCreateDateStr)
 	} else {
 		latestOrderInterest := interestList[len(interestList)-1]
-		latestTime, _ = time.Parse("2006-01-02 15:04:05", latestOrderInterest.Time)
+		latestTime, _ = time.Parse(timeFormat, latestOrderInterest.Time)
 	}
 	latestTime = TruncateToHour(latestTime.In(time.UTC))
 	latestTime = latestTime.Add(time.Hour)
@@ -134,7 +136,7 @@ func calculateOrderInterest(order *models.Order, product *models.StakingProduct,
 	interest := models.NewOrderInterest()
 	interest.OrderID = order.OrderID
 	interest.APY = CalculateCurrentAPY(product, totalPrincipal)
-	interest.Time = when.Format("2006-01-02 15:04:05")
+	interest.Time = when.Format(timeFormat)
 
 	N := float64(product.LockUpPeriod)
 	interest.InterestGain = (interest.APY / (360.0 / N)) * principal * (1 / (N * 24))
@@ -143,7 +145,7 @@ func calculateOrderInterest(order *models.Order, product *models.StakingProduct,
 
 func findMostRecentPrincipalUpdate(principalUpdates []*models.PrincipalUpdate, now time.Time) int {
 	index := sort.Search(len(principalUpdates), func(i int) bool {
-		updateTime, _ := time.Parse("2006-01-02 15:04:05", principalUpdates[i].Time)
+		updateTime, _ := time.Parse(timeFormat, principalUpdates[i].Time)
 		return updateTime.After(now)
 	})
 	return index - 1 // the last index for which updateTime is before now
@@ -213,7 +215,7 @@ func updateExpiredProducts(currentTime time.Time) error {
 }
 
 func isProductExpired(product *models.StakingProduct, currentTime time.Time) bool {
-	startTime, _ := time.Parse("2006-01-02 15:04:05", product.StartDate)
+	startTime, _ := time.Parse(timeFormat, product.StartDate)
 	startTime = TruncateToHour(startTime.In(time.UTC))
 	endTime := startTime.Add(time.Hour * 24 * time.Duration(product.LockUpPeriod))
 	return !currentTime.Before(endTime)

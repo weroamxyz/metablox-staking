@@ -1,5 +1,9 @@
 package models
 
+import (
+	foundationModels "github.com/MetaBloxIO/metablox-foundation-services/models"
+)
+
 const TxTypeBuyIn = "BuyIn"
 const TxTypeInterestOnly = "InterestOnly"
 const TxTypeOrderClosure = "OrderClosure"
@@ -8,12 +12,14 @@ const OrderTypePending = "Pending"
 const OrderTypeHolding = "Holding"
 const OrderTypeComplete = "Complete"
 
+const CurrencyTypeMBLX = "MBLX"
+
 type Order struct {
 	OrderID             string  `db:"OrderID"`
 	ProductID           string  `db:"ProductID"`
 	UserDID             string  `db:"UserDID"`
 	Type                string  `db:"Type" validate:"required,oneof=Pending Holding Complete"`
-	Term                *int    `db:"Term"`
+	Term                int     `db:"Term"`
 	AccumulatedInterest float64 `db:"AccumulatedInterest"`
 	TotalInterestGained float64 `db:"TotalInterestGained"`
 	PaymentAddress      string  `db:"PaymentAddress"`
@@ -29,6 +35,7 @@ type StakingProduct struct {
 	MinRedeemValue int     `db:"MinRedeemValue" json:"minRedeemValue"`
 	LockUpPeriod   int     `db:"LockUpPeriod" json:"lockUpPeriod"`
 	DefaultAPY     float64 `db:"DefaultAPY"`
+	CurrentAPY     float64 `json:"currentAPY"`
 	CreateDate     string  `db:"CreateDate" validate:"required,datetime=2006-01-02 15:04:05"`
 	StartDate      string  `db:"StartDate" validate:"required,datetime=2006-01-02 15:04:05"`
 	Term           int     `db:"Term"`
@@ -72,6 +79,29 @@ type PaymentInfo struct {
 	Network        string `db:"Network"`
 }
 
+type MinerInfo struct {
+	ID           string   `db:"ID"`
+	Name         string   `db:"Name"`
+	SSID         *string  `db:"SSID"`
+	BSSID        *string  `db:"BSSID"`
+	CreateTime   string   `db:"CreateTime"`
+	Longitude    *float64 `db:"Longitude"`
+	Latitude     *float64 `db:"Latitude"`
+	OnlineStatus bool     `db:"OnlineStatus"`
+	MiningPower  *float64 `db:"MiningPower"`
+	IsMinable    bool     `db:"IsMinable"`
+	DID          string   `db:"DID"`
+	Host         string   `db:"Host"`
+}
+
+type SeedExchange struct {
+	VcID         string  `db:"VcID"`
+	UserDID      string  `db:"UserDID"`
+	ExchangeRate float64 `db:"ExchangeRate"`
+	Amount       float64 `db:"Amount"`
+	CreateTime   string  `db:"CreateTime"`
+}
+
 type StakingRecord struct {
 	OrderID           string  `db:"OrderID"`
 	ProductID         string  `db:"ProductID"`
@@ -86,19 +116,35 @@ type StakingRecord struct {
 	IsInClosureWindow bool
 }
 
+type ProductDetails struct {
+	ID             string  `db:"ID"`
+	ProductName    string  `db:"ProductName"`
+	MinOrderValue  int     `db:"MinOrderValue"`
+	TopUpLimit     float64 `db:"TopUpLimit"`
+	MinRedeemValue int     `db:"MinRedeemValue"`
+	LockUpPeriod   int     `db:"LockUpPeriod"`
+	CurrentAPY     float64
+	Status         bool `db:"Status"`
+}
+
+type SeedInfo struct {
+	ID     string
+	Amount float64
+}
+
 type OrderInterestInfo struct {
 	AccumulatedInterest float64 `db:"AccumulatedInterest"`
 	TotalInterestGained float64 `db:"TotalInterestGained"`
 }
 
-type CreateOrderInput struct {
+type OrderInput struct {
 	Amount      float64
 	UserAddress string
 	UserDID     string
 	ProductID   string
 }
 
-type CreateOrderOutput struct {
+type OrderOutput struct {
 	OrderID        string
 	PaymentAddress string
 }
@@ -132,23 +178,68 @@ type PrincipalUpdate struct {
 	TotalPrincipal float64 `db:"TotalPrincipal"`
 }
 
-func NewOrder() *Order {
+type SeedExchangeInput struct {
+	DID              string //placeholder
+	WalletAddress    string
+	SeedPresentation foundationModels.VerifiablePresentation
+	PublicKeyString  []byte
+}
+
+type SeedExchangeOutput struct {
+	Amount       float64
+	TxHash       string
+	TxTime       string
+	ExchangeRate float64
+}
+
+func CreateOrder() *Order {
 	return &Order{}
 }
 
-func NewStakingProduct() *StakingProduct {
+func NewOrder(
+	productID string, userDID string, orderType string, paymentAddress string, amount float64, userAddress string) *Order {
+	return &Order{
+		"",
+		productID,
+		userDID,
+		orderType,
+		1,
+		0,
+		0,
+		paymentAddress,
+		amount,
+		userAddress,
+	}
+}
+
+func CreateStakingProduct() *StakingProduct {
 	return &StakingProduct{}
 }
 
-func NewUser() *User {
+func CreateUser() *User {
 	return &User{}
 }
 
-func NewTXInfo() *TXInfo {
+func CreateTXInfo() *TXInfo {
 	return &TXInfo{}
 }
 
-func NewOrderInterest() *OrderInterest {
+func NewTXInfo(orderID, txCurrencyType, txType, txHash string, principal, interest float64, userAddress, redeemableTime string) *TXInfo {
+	return &TXInfo{
+		"",
+		orderID,
+		txCurrencyType,
+		txType,
+		&txHash,
+		principal,
+		interest,
+		userAddress,
+		"",
+		redeemableTime,
+	}
+}
+
+func CreateOrderInterest() *OrderInterest {
 	return &OrderInterest{}
 }
 
@@ -156,31 +247,74 @@ func NewOrderInterestList() []*OrderInterest {
 	return []*OrderInterest{}
 }
 
-func NewStakingRecord() *StakingRecord {
+func CreateMinerInfo() *MinerInfo {
+	return &MinerInfo{}
+}
+
+func CreateSeedExchange() *SeedExchange {
+	return &SeedExchange{}
+}
+
+func NewSeedExchange(vcID, userDID string, exchangeRate, amount float64) *SeedExchange {
+	return &SeedExchange{
+		vcID,
+		userDID,
+		exchangeRate,
+		amount,
+		"",
+	}
+}
+
+func CreateStakingRecord() *StakingRecord {
 	return &StakingRecord{}
 }
 
-func NewCreateOrderInput() *CreateOrderInput {
-	return &CreateOrderInput{}
+func CreateProductDetails() *ProductDetails {
+	return &ProductDetails{}
 }
 
-func NewCreateOrderOutput() *CreateOrderOutput {
-	return &CreateOrderOutput{}
+func CreateSeedInfo() *SeedInfo {
+	return &SeedInfo{}
 }
 
-func NewSubmitBuyinInput() *SubmitBuyinInput {
+func CreateOrderInput() *OrderInput {
+	return &OrderInput{}
+}
+
+func CreateOrderOutput() *OrderOutput {
+	return &OrderOutput{}
+}
+
+func NewOrderOutput(orderID, paymentAddress string) *OrderOutput {
+	return &OrderOutput{
+		orderID,
+		paymentAddress,
+	}
+}
+
+func CreateSubmitBuyinInput() *SubmitBuyinInput {
 	return &SubmitBuyinInput{}
 }
 
-func NewSubmitBuyinOutput() *SubmitBuyinOutput {
+func CreateSubmitBuyinOutput() *SubmitBuyinOutput {
 	return &SubmitBuyinOutput{}
 }
 
-func NewOrderInterestInfo() *OrderInterestInfo {
+func NewSubmitBuyinOutput(productName string, amount float64, time, userAddress, txCurrencyType string) *SubmitBuyinOutput {
+	return &SubmitBuyinOutput{
+		productName,
+		amount,
+		time,
+		userAddress,
+		txCurrencyType,
+	}
+}
+
+func CreateOrderInterestInfo() *OrderInterestInfo {
 	return &OrderInterestInfo{}
 }
 
-func NewRedeemOrderOutput() *RedeemOrderOuput {
+func CreateRedeemOrderOutput() *RedeemOrderOuput {
 	return &RedeemOrderOuput{}
 }
 
@@ -190,4 +324,44 @@ func NewPrincipalUpdate() *PrincipalUpdate {
 
 func NewPrincipalUpdateList() []*PrincipalUpdate {
 	return []*PrincipalUpdate{}
+}
+
+func NewRedeemOrderOutput(productName string, amount float64, time, toAddress, txCurrencyType, txHash string) *RedeemOrderOuput {
+	return &RedeemOrderOuput{
+		productName,
+		amount,
+		time,
+		toAddress,
+		txCurrencyType,
+		txHash,
+	}
+}
+
+func CreateSeedExchangeInput() *SeedExchangeInput {
+	return &SeedExchangeInput{}
+}
+
+func CreateSeedExchangeOutput() *SeedExchangeOutput {
+	return &SeedExchangeOutput{}
+}
+
+func NewSeedExchangeOutput(amount float64, txHash, txTime string, exchangeRate float64) *SeedExchangeOutput {
+	return &SeedExchangeOutput{
+		amount,
+		txHash,
+		txTime,
+		exchangeRate,
+	}
+}
+
+//need to convert SeedInfo portion of presentation from a map to a struct.
+//This should most likely be done in foundation service with the rest of the conversions,
+//but I implemented it here to make the system work. In the future, this can be
+//removed once the foundation service has implemented SeedInfo VCs
+func ConvertCredentialSubject(vc *foundationModels.VerifiableCredential) {
+	subjectMap := vc.CredentialSubject.(map[string]interface{})
+	seedInfo := CreateSeedInfo()
+	seedInfo.ID = subjectMap["id"].(string)
+	seedInfo.Amount = subjectMap["amount"].(float64)
+	vc.CredentialSubject = *seedInfo
 }

@@ -16,9 +16,16 @@ func Setup() {
 
 	r.GET("/staking/orders/:did", controllers.GetStakingRecordsHandler)
 	r.GET("/staking/transactions/order/:id", controllers.GetTransactionsByOrderIDHandler)
-	r.GET("/staking/transactions/user/:id", controllers.GetTransactionsByUserDIDHandler)
+	r.GET("/staking/transactions/user/:did", controllers.GetTransactionsByUserDIDHandler)
 	r.GET("/staking/interest/:id", controllers.GetOrderInterestHandler)
 	r.POST("/staking/redeem/full/:id", controllers.RedeemOrderHandler)
 	r.POST("/staking/redeem/interest/:id", controllers.RedeemInterestHandler)
+
+	r.GET("/mining/minerlist", controllers.GetMinerListHandler)
+	r.GET("/mining/miner", controllers.GetMinerByIDHandler)
+	r.GET("/mining/exchangerate/:id", controllers.GetExchangeRateHandler)
+	r.GET("/mining/rewardhistory/:did", controllers.GetRewardHistoryHandler)
+	r.POST("/mining/exchange", controllers.ExchangeSeedHandler)
+
 	r.Run(":8889")
 }

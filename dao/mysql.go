@@ -1,7 +1,6 @@
 package dao
 
 import (
-	"errors"
 	"fmt"
 	"github.com/go-playground/validator/v10"
 	_ "github.com/go-sql-driver/mysql"
@@ -9,6 +8,7 @@ import (
 	logger "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
+	"github.com/metabloxStaking/errval"
 	"github.com/metabloxStaking/models"
 )
 
@@ -53,7 +53,7 @@ func InitSql(validatePtr *validator.Validate) error {
 }
 
 func GetProductInfoByID(productID string) (*models.StakingProduct, error) {
-	product := models.NewStakingProduct()
+	product := models.CreateStakingProduct()
 
 	sqlStr := "select * from StakingProducts where ID = ?"
 	err := SqlDB.Get(product, sqlStr, productID)
@@ -75,9 +75,10 @@ func GetAllProductInfo() ([]*models.StakingProduct, error) {
 	if err != nil {
 		return nil, err
 	}
+	// TODO: get current apy
 
 	for rows.Next() {
-		product := models.NewStakingProduct()
+		product := models.CreateStakingProduct()
 		err = rows.StructScan(product)
 		if err != nil {
 			return nil, err
@@ -119,7 +120,7 @@ func CheckIfTXExists(txHash string) (bool, error) {
 		return false, err
 	}
 
-	return (count != 0), nil
+	return count != 0, nil
 }
 
 func GetTXCreateDate(txHash string) (string, error) {
@@ -141,7 +142,7 @@ func GetStakingRecords(did string) ([]*models.StakingRecord, error) {
 	}
 
 	for rows.Next() {
-		record := models.NewStakingRecord()
+		record := models.CreateStakingRecord()
 		err = rows.StructScan(record)
 		if err != nil {
 			return nil, err
@@ -152,7 +153,7 @@ func GetStakingRecords(did string) ([]*models.StakingRecord, error) {
 }
 
 func GetInterestInfoByOrderID(id string) (*models.OrderInterestInfo, error) {
-	info := models.NewOrderInterestInfo()
+	info := models.CreateOrderInterestInfo()
 	sqlStr := "select AccumulatedInterest, TotalInterestGained from Orders where OrderID = ?"
 	err := SqlDB.Get(info, sqlStr, id)
 	if err != nil {
@@ -171,7 +172,7 @@ func PrepareGetInterestByOrderID() (*sqlx.Stmt, error) {
 }
 
 func ExecuteGetInterestStmt(id string, stmt *sqlx.Stmt) (*models.OrderInterestInfo, error) {
-	info := models.NewOrderInterestInfo()
+	info := models.CreateOrderInterestInfo()
 	err := stmt.Get(info, id)
 	if err != nil {
 		return nil, err
@@ -187,7 +188,7 @@ func GetTransactionsByOrderID(orderID string) ([]*models.TXInfo, error) {
 		return nil, err
 	}
 	for rows.Next() {
-		tx := models.NewTXInfo()
+		tx := models.CreateTXInfo()
 		err = rows.StructScan(tx)
 		if err != nil {
 			return nil, err
@@ -209,7 +210,7 @@ func GetTransactionsByUserDID(userDID string) ([]*models.TXInfo, error) {
 		return nil, err
 	}
 	for rows.Next() {
-		tx := models.NewTXInfo()
+		tx := models.CreateTXInfo()
 		err = rows.StructScan(tx)
 		if err != nil {
 			return nil, err
@@ -231,7 +232,7 @@ func GetOrderInterestByID(orderID string) ([]*models.OrderInterest, error) {
 		return nil, err
 	}
 	for rows.Next() {
-		interest := models.NewOrderInterest()
+		interest := models.CreateOrderInterest()
 		err = rows.StructScan(interest)
 		if err != nil {
 			return nil, err
@@ -245,9 +246,40 @@ func GetOrderInterestByID(orderID string) ([]*models.OrderInterest, error) {
 	return interests, nil
 }
 
-func RedeemInterestByOrderID(orderID string) error {
-	sqlStr := "update OrderInterest set TotalInterestGain = 0 where OrderID = ? order by ID desc limit 1"
-	_, err := SqlDB.Exec(sqlStr, orderID)
+func RedeemOrder(txInfo *models.TXInfo, interestGained float64) error {
+	dbtx, err := SqlDB.Beginx()
+	if err != nil {
+		return err
+	}
+
+	sqlStr := "update OrderInterest set TotalInterestGain = ? where OrderID = ? order by ID desc limit 1"
+	_, err = dbtx.Exec(sqlStr, interestGained, txInfo.OrderID)
+	if err != nil {
+		dbtx.Rollback()
+		return err
+	}
+
+	sqlStr = "update Orders set TotalInterestGained = AccumulatedInterest where OrderID = ?"
+	_, err = SqlDB.Query(sqlStr, txInfo.OrderID)
+	if err != nil {
+		dbtx.Rollback()
+		return err
+	}
+
+	sqlStr = "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :RedeemableTime)"
+	_, err = SqlDB.NamedExec(sqlStr, txInfo)
+	if err != nil {
+		dbtx.Rollback()
+		return err
+	}
+
+	dbtx.Commit()
+	return nil
+}
+
+func RedeemInterestByOrderID(orderID string, interestGained float64) error {
+	sqlStr := "update OrderInterest set TotalInterestGain = ? where OrderID = ? order by ID desc limit 1"
+	_, err := SqlDB.Exec(sqlStr, interestGained, orderID)
 	if err != nil {
 		return err
 	}
@@ -262,7 +294,7 @@ func GetHoldingOrders() ([]*models.Order, error) {
 		return nil, err
 	}
 	for rows.Next() {
-		order := models.NewOrder()
+		order := models.CreateOrder()
 		err = rows.StructScan(order)
 		if err != nil {
 			logger.Warn(err)
@@ -286,7 +318,7 @@ func GetOrdersByProductID(productID string) ([]*models.Order, error) {
 		return nil, err
 	}
 	for rows.Next() {
-		order := models.NewOrder()
+		order := models.CreateOrder()
 		err = rows.StructScan(order)
 		if err != nil {
 			logger.Warn(err)
@@ -303,7 +335,7 @@ func GetOrdersByProductID(productID string) ([]*models.Order, error) {
 }
 
 func GetOrderByID(orderID string) (*models.Order, error) {
-	order := models.NewOrder()
+	order := models.CreateOrder()
 	sqlStr := "select * from Orders where OrderID = ?"
 	err := SqlDB.Get(order, sqlStr, orderID)
 	if err != nil {
@@ -356,15 +388,15 @@ func GetOrderBuyInPrincipal(orderID string) (float64, error) {
 	return buyInAmount, nil
 }
 
-func GetMinimumInterestByOrderID(orderID string) (int, error) {
-	var minInterest int
-	sqlStr := "select StakingProducts.MinRedeemValue from StakingProducts join Orders on StakingProducts.ID = Orders.ProductID where Orders.OrderID = ?"
-	err := SqlDB.Get(&minInterest, sqlStr, orderID)
+func CompareMinimumInterest(orderID string, currentInterest float64) (bool, error) {
+	var result bool
+	sqlStr := "select StakingProducts.MinRedeemValue <= ? from StakingProducts join Orders on StakingProducts.ID = Orders.ProductID where Orders.OrderID = ?"
+	err := SqlDB.Get(&result, sqlStr, currentInterest, orderID)
 	if err != nil {
-		return 0, err
+		return false, err
 	}
 
-	return minInterest, nil
+	return result, nil
 }
 
 func UploadTransaction(tx *models.TXInfo) error {
@@ -402,7 +434,7 @@ func SubmitBuyin(tx *models.TXInfo) error {
 	}
 	if rows == 0 {
 		dbTX.Rollback()
-		return errors.New("failed to update order status; it may not exist, or it may already be holding")
+		return errval.ErrUpdateOrderStatus
 	}
 
 	sqlStr = "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :RedeemableTime)"
@@ -498,7 +530,7 @@ func GetSortedOrderInterestListUntilDate(orderID string, until string) ([]*model
 	defer rows.Close()
 	interestList := models.NewOrderInterestList()
 	for rows.Next() {
-		interest := models.NewOrderInterest()
+		interest := models.CreateOrderInterest()
 		err := rows.StructScan(interest)
 		if err != nil {
 			return nil, err

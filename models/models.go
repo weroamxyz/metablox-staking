@@ -94,6 +94,9 @@ type MinerInfo struct {
 	Latitude     *float64 `db:"Latitude"`
 	OnlineStatus bool     `db:"OnlineStatus"`
 	MiningPower  *float64 `db:"MiningPower"`
+	IsMinable    bool     `db:"IsMinable"`
+	DID          string   `db:"DID"`
+	Host         string   `db:"Host"`
 }
 
 type SeedExchange struct {

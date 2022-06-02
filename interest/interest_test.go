@@ -4,6 +4,7 @@ import (
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 	"github.com/stretchr/testify/assert"
+
 	"strconv"
 	"testing"
 	"time"
@@ -30,7 +31,7 @@ func TestCalculateCurrentAPY(t *testing.T) {
 			lockUpPeriod:   180,
 			defaultAPY:     0.2,
 			totalPrincipal: 400,
-			expected:       "250.000000",
+			expected:       "250.00",
 		},
 		{
 			name:           "total principal 900",

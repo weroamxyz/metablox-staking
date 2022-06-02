@@ -78,7 +78,7 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 	latestTime = latestTime.Add(time.Hour)
 
 	// generate orderInterest until it reaches the current hour
-	interestToAdd := models.NewOrderInterestList()
+	interestToAdd := models.CreateOrderInterestList()
 	for !targetTime.Before(latestTime) {
 		if isProductExpired(product, latestTime) {
 			if product.NextProductID == nil {
@@ -135,7 +135,7 @@ func calculateOrderInterest(order *models.Order, product *models.StakingProduct,
 		return nil, err
 	}
 
-	interest := models.NewOrderInterest()
+	interest := models.CreateOrderInterest()
 	interest.OrderID = order.OrderID
 	interest.APY = CalculateCurrentAPY(product, totalPrincipal)
 	interest.Time = when.Format(timeFormat)

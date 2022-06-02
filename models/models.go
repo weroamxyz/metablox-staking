@@ -243,7 +243,7 @@ func CreateOrderInterest() *OrderInterest {
 	return &OrderInterest{}
 }
 
-func NewOrderInterestList() []*OrderInterest {
+func CreateOrderInterestList() []*OrderInterest {
 	return []*OrderInterest{}
 }
 

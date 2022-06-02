@@ -78,7 +78,7 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 
 	txHash := contract.RedeemOrder()
 
-	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TXTypeClosure, txHash, 0, 0, userAddress, redeemableDate)
+	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeOrderClosure, txHash, 0, 0, userAddress, redeemableDate)
 
 	dao.RedeemOrder(txInfo, interestInfo.AccumulatedInterest)
 	err = dao.UploadTransaction(txInfo)
@@ -89,6 +89,20 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 	amount := (interestInfo.AccumulatedInterest - interestInfo.TotalInterestGained) + order.Amount
 	time := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
 	output := models.NewRedeemOrderOutput(productName, amount, time, userAddress, models.CurrencyTypeMBLX, txHash)
+
+	// record change in staking pool's total principal
+	newPrincipal := models.NewPrincipalUpdate()
+	oldPrincipal, err := dao.GetLatestPrincipalUpdate(order.ProductID)
+	if err != nil {
+		return nil, err
+	}
+	newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal - order.Amount
+
+	err = dao.InsertPrincipalUpdate(order.ProductID, newPrincipal.TotalPrincipal)
+	if err != nil {
+		return nil, err
+	}
+
 	return output, nil
 }
 
@@ -118,7 +132,7 @@ func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, err
 	}
 
-	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TXTypeInterest, txHash, 0, 0, userAddress, time.Now().Format("2006-01-02 15:04:05.000"))
+	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeInterestOnly, txHash, 0, 0, userAddress, time.Now().Format("2006-01-02 15:04:05.000"))
 
 	productName, err := dao.GetProductNameForOrder(orderID)
 	if err != nil {

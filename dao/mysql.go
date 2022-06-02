@@ -528,7 +528,7 @@ func GetSortedOrderInterestListUntilDate(orderID string, until string) ([]*model
 		return nil, err
 	}
 	defer rows.Close()
-	interestList := models.NewOrderInterestList()
+	interestList := models.CreateOrderInterestList()
 	for rows.Next() {
 		interest := models.CreateOrderInterest()
 		err := rows.StructScan(interest)

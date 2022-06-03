@@ -42,7 +42,7 @@ CREATE TABLE `Orders` (
                           `Amount` float NOT NULL,
                           `UserAddress` varchar(45) NOT NULL,
                           PRIMARY KEY (`OrderID`)
-) ENGINE=InnoDB AUTO_INCREMENT=81 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -98,7 +98,7 @@ CREATE TABLE `StakingProducts` (
                                    `BurnedInterest` float NOT NULL DEFAULT '0',
                                    `Status` tinyint NOT NULL DEFAULT '1',
                                    PRIMARY KEY (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -120,7 +120,7 @@ CREATE TABLE `TXInfo` (
                           `CreateDate` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
                           `RedeemableTime` timestamp(3) NOT NULL,
                           PRIMARY KEY (`PaymentNo`)
-) ENGINE=InnoDB AUTO_INCREMENT=75 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 DROP TABLE IF EXISTS `OrderInterest`;
@@ -132,7 +132,7 @@ CREATE TABLE `OrderInterest` (
                                  `InterestGain` float NOT NULL,
                                  `TotalInterestGain` float NOT NULL,
                                  PRIMARY KEY (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 

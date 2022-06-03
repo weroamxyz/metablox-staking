@@ -1,10 +1,14 @@
 package dao
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/go-playground/validator/v10"
+	"github.com/metabloxStaking/errval"
+	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
 	"io/ioutil"
+	"strconv"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -66,4 +70,86 @@ func executeSQLScript(path string) error {
 		return err
 	}
 	return nil
+}
+
+func SubmitBuyinWithDate(tx *models.TXInfo) error {
+	err := validate.Struct(tx)
+	if err != nil {
+		return err
+	}
+	dbTX, err := SqlDB.Beginx()
+	if err != nil {
+		return err
+	}
+	sqlStr := "update Orders set Type = 'Holding' where OrderID = ?"
+	result, err := dbTX.Exec(sqlStr, tx.OrderID)
+	if err != nil {
+		dbTX.Rollback()
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		dbTX.Rollback()
+		return err
+	}
+	if rows == 0 {
+		dbTX.Rollback()
+		return errval.ErrUpdateOrderStatus
+	}
+
+	sqlStr = "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, CreateDate, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :CreateDate, :RedeemableTime)"
+	_, err = dbTX.NamedExec(sqlStr, tx)
+	if err != nil {
+		dbTX.Rollback()
+		return err
+	}
+	dbTX.Commit()
+	return nil
+}
+
+func InsertPrincipalUpdateWithTime(productID string, totalPrincipal float64, time string) error {
+	sqlStr := `insert into PrincipalUpdates (ProductID, Time, TotalPrincipal) values (?, ?, ?)`
+	_, err := SqlDB.Exec(sqlStr, productID, time, totalPrincipal)
+	return err
+}
+
+func BuyinTestOrderWithDate(order *models.Order, date string) (string, error) {
+	id, err := CreateOrder(order)
+	if err != nil {
+		return "", err
+	}
+
+	// create corresponding txinfo
+	txInfo := &models.TXInfo{
+		OrderID:        strconv.Itoa(id),
+		TXCurrencyType: "",
+		TXType:         "BuyIn",
+		TXHash:         nil,
+		Principal:      order.Amount,
+		Interest:       0,
+		UserAddress:    "",
+		CreateDate:     date,
+		RedeemableTime: "2022-01-01 00:00:00",
+	}
+	err = SubmitBuyinWithDate(txInfo)
+	if err != nil {
+		return "", err
+	}
+
+	// record change in staking pool's total principal
+	newPrincipal := models.NewPrincipalUpdate()
+	oldPrincipal, err := GetLatestPrincipalUpdate(order.ProductID)
+	if err == nil {
+		newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal + txInfo.Principal
+	} else if err == sql.ErrNoRows {
+		newPrincipal.TotalPrincipal = txInfo.Principal
+	} else {
+		return "", err
+	}
+
+	err = InsertPrincipalUpdateWithTime(order.ProductID, newPrincipal.TotalPrincipal, date)
+	if err != nil {
+		return "", err
+	}
+	return strconv.Itoa(id), nil
 }

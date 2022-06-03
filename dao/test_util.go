@@ -13,7 +13,7 @@ var sqlUser = "admin"
 var sqlPassword = "password"
 var sqlHost = "127.0.0.1"
 var sqlPort = "3306"
-var sqlDBName = "boundarypaytest"
+var sqlDBName = "metabloxstakingtest"
 
 const SQLCreateScript = "../dao/create_test_tables.sql"
 const SQLInsertScript = "../dao/insert_test_data.sql"

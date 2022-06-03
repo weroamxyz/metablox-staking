@@ -93,6 +93,7 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 }
 
 func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
+
 	orderID := c.Param("id")
 
 	interestInfo, err := dao.GetInterestInfoByOrderID(orderID)
@@ -111,7 +112,7 @@ func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, errval.ErrNotEnoughInterest
 	}
 
-	txHash := contract.RedeemInterest()
+	contract.RedeemInterest(10, 5)
 
 	userAddress, err := dao.GetUserAddressByOrderID(orderID)
 	if err != nil {

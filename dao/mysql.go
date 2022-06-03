@@ -364,3 +364,12 @@ func GetProductNameForOrder(id string) (string, error) {
 	}
 	return name, nil
 }
+
+func UploadStakeEvent(event *models.StakeEvent) error {
+	sqlStr := "insert into StakeEvents (Address, Amount, Time) values (:Address, :Amount, FROM_UNIXTIME(:Time))"
+	_, err := SqlDB.NamedExec(sqlStr, event)
+	if err != nil {
+		return err
+	}
+	return nil
+}

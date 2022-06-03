@@ -129,6 +129,13 @@ type ProductDetails struct {
 	Status         bool `db:"Status"`
 }
 
+type StakeEvent struct {
+	ID      string `db:"ID"`
+	Address string `db:"Address"`
+	Amount  int    `db:"Amount"`
+	Time    uint64 `db:"Time"`
+}
+
 type SeedInfo struct {
 	ID     string
 	Amount float64
@@ -170,7 +177,6 @@ type RedeemOrderOuput struct {
 	Time           string
 	ToAddress      string
 	TXCurrencyType string
-	TXHash         string
 }
 
 type SeedExchangeInput struct {
@@ -185,6 +191,14 @@ type SeedExchangeOutput struct {
 	TxHash       string
 	TxTime       string
 	ExchangeRate float64
+}
+
+type RedemptionSignature struct {
+	Value    int
+	Deadline int
+	V        int
+	R        [32]byte
+	S        [32]byte
 }
 
 func CreateOrder() *Order {
@@ -309,14 +323,13 @@ func CreateRedeemOrderOutput() *RedeemOrderOuput {
 	return &RedeemOrderOuput{}
 }
 
-func NewRedeemOrderOutput(productName string, amount float64, time, toAddress, txCurrencyType, txHash string) *RedeemOrderOuput {
+func NewRedeemOrderOutput(productName string, amount float64, time, toAddress, txCurrencyType string) *RedeemOrderOuput {
 	return &RedeemOrderOuput{
 		productName,
 		amount,
 		time,
 		toAddress,
 		txCurrencyType,
-		txHash,
 	}
 }
 
@@ -334,6 +347,25 @@ func NewSeedExchangeOutput(amount float64, txHash, txTime string, exchangeRate f
 		txHash,
 		txTime,
 		exchangeRate,
+	}
+}
+
+func NewStakeEvent(address string, amount int, time uint64) *StakeEvent {
+	return &StakeEvent{
+		"",
+		address,
+		amount,
+		time,
+	}
+}
+
+func NewRedemptionSignature(value, deadline, v int, r, s [32]byte) *RedemptionSignature {
+	return &RedemptionSignature{
+		value,
+		deadline,
+		v,
+		r,
+		s,
 	}
 }
 

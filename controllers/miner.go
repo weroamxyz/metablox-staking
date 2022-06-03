@@ -58,12 +58,19 @@ func GetMinerList(c *gin.Context) ([]*models.MinerInfo, error) {
 		return minerList, nil
 	}
 
+	minerList, err := foundationdao.GetAllVirtualMinerInfo() //return all virtual miners along with the closest one
+	if err != nil {
+		return nil, err
+	}
+
 	closestMiner, err := GetClosestMiner(latitude, longitude)
 	if err != nil {
 		return nil, err
 	}
 
-	return []*models.MinerInfo{closestMiner}, nil
+	minerList = append(minerList, closestMiner)
+
+	return minerList, nil
 }
 
 func GetAllMiners() ([]*models.MinerInfo, error) {

@@ -90,6 +90,7 @@ type MinerInfo struct {
 	IsMinable    bool     `db:"IsMinable"`
 	DID          string   `db:"DID"`
 	Host         string   `db:"Host"`
+	IsVirtual    bool     `db:"IsVirtual"`
 }
 
 type SeedExchange struct {

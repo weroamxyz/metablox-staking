@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"github.com/metabloxStaking/interest"
 	"time"
 
 	"github.com/MetaBloxIO/metablox-foundation-services/did"
@@ -35,7 +36,12 @@ func GetProductInfoByIDHandler(c *gin.Context) {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
-	product.CurrentAPY = 1234 //todo: get value from Colin's code
+	principalUpdate, err := dao.GetLatestPrincipalUpdate(product.ID)
+	if err != nil {
+		product.CurrentAPY = product.DefaultAPY
+	} else {
+		product.CurrentAPY = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal)
+	}
 	ResponseSuccess(c, product)
 }
 
@@ -45,6 +51,14 @@ func GetAllProductInfoHandler(c *gin.Context) {
 		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
+	}
+	for _, product := range products {
+		principalUpdate, err := dao.GetLatestPrincipalUpdate(product.ID)
+		if err != nil {
+			product.CurrentAPY = product.DefaultAPY
+		} else {
+			product.CurrentAPY = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal)
+		}
 	}
 	ResponseSuccess(c, products)
 }

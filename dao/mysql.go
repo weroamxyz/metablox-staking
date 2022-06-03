@@ -75,7 +75,6 @@ func GetAllProductInfo() ([]*models.StakingProduct, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO: get current apy
 
 	for rows.Next() {
 		product := models.CreateStakingProduct()

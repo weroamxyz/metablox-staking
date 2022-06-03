@@ -34,13 +34,13 @@ type StakingProduct struct {
 	TopUpLimit     float64 `db:"TopUpLimit" json:"topUpLimit"`
 	MinRedeemValue int     `db:"MinRedeemValue" json:"minRedeemValue"`
 	LockUpPeriod   int     `db:"LockUpPeriod" json:"lockUpPeriod"`
-	DefaultAPY     float64 `db:"DefaultAPY"`
-	CurrentAPY     float64 `json:"currentAPY"`
-	CreateDate     string  `db:"CreateDate" validate:"required,datetime=2006-01-02 15:04:05"`
-	StartDate      string  `db:"StartDate" validate:"required,datetime=2006-01-02 15:04:05"`
-	Term           int     `db:"Term"`
-	BurnedInterest float64 `db:"BurnedInterest"`
-	NextProductID  *string `db:"NextProductID"`
+	DefaultAPY     float64 `db:"DefaultAPY" json:"-"`
+	CurrentAPY     float64 `json:"currentAPY" json:"-"`
+	CreateDate     string  `db:"CreateDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
+	StartDate      string  `db:"StartDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
+	Term           int     `db:"Term" json:"-"`
+	BurnedInterest float64 `db:"BurnedInterest" json:"-"`
+	NextProductID  *string `db:"NextProductID" json:"-"`
 	Status         bool    `db:"Status" json:"status"`
 }
 

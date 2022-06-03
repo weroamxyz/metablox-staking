@@ -1,6 +1,9 @@
 package controllers
 
 import (
+	"github.com/metabloxStaking/interest"
+	"time"
+
 	"github.com/MetaBloxIO/metablox-foundation-services/did"
 	"github.com/gin-gonic/gin"
 	"github.com/metabloxStaking/contract"
@@ -33,7 +36,12 @@ func GetProductInfoByIDHandler(c *gin.Context) {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
-	product.CurrentAPY = 1234 //todo: get value from Colin's code
+	principalUpdate, err := dao.GetLatestPrincipalUpdate(product.ID)
+	if err != nil {
+		product.CurrentAPY = product.DefaultAPY
+	} else {
+		product.CurrentAPY = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal)
+	}
 	ResponseSuccess(c, product)
 }
 
@@ -43,6 +51,14 @@ func GetAllProductInfoHandler(c *gin.Context) {
 		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
+	}
+	for _, product := range products {
+		principalUpdate, err := dao.GetLatestPrincipalUpdate(product.ID)
+		if err != nil {
+			product.CurrentAPY = product.DefaultAPY
+		} else {
+			product.CurrentAPY = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal)
+		}
 	}
 	ResponseSuccess(c, products)
 }
@@ -113,7 +129,7 @@ func GetTransactionsByUserDIDHandler(c *gin.Context) {
 
 func GetOrderInterestHandler(c *gin.Context) {
 	orderID := c.Param("id")
-	transactions, err := dao.GetOrderInterestByID(orderID)
+	transactions, err := dao.GetSortedOrderInterestListUntilDate(orderID, time.Now().Format("2006-01-02 15:04:05"))
 	if err != nil {
 		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())

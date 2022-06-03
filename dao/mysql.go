@@ -2,7 +2,7 @@ package dao
 
 import (
 	"fmt"
-
+	"github.com/go-playground/validator/v10"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	logger "github.com/sirupsen/logrus"
@@ -13,8 +13,11 @@ import (
 )
 
 var SqlDB *sqlx.DB
+var validate *validator.Validate
 
-func InitSql() error {
+func InitSql(validatePtr *validator.Validate) error {
+	validate = validatePtr
+
 	var err error
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
@@ -49,11 +52,15 @@ func InitSql() error {
 	return nil
 }
 
-func GetProductInfoByID(productID string) (*models.ProductDetails, error) {
-	product := models.CreateProductDetails()
+func GetProductInfoByID(productID string) (*models.StakingProduct, error) {
+	product := models.CreateStakingProduct()
 
-	sqlStr := "select ID, ProductName, MinOrderValue, TopUpLimit, LockUpPeriod, Status, MinRedeemValue from StakingProducts where ID = ?"
+	sqlStr := "select * from StakingProducts where ID = ?"
 	err := SqlDB.Get(product, sqlStr, productID)
+	if err != nil {
+		return nil, err
+	}
+	err = validate.Struct(product)
 	if err != nil {
 		return nil, err
 	}
@@ -61,27 +68,35 @@ func GetProductInfoByID(productID string) (*models.ProductDetails, error) {
 	return product, nil
 }
 
-func GetAllProductInfo() ([]*models.ProductDetails, error) {
-	var products []*models.ProductDetails
-	sqlStr := "select ID, ProductName, MinOrderValue, TopUpLimit, LockUpPeriod, Status, MinRedeemValue from StakingProducts"
+func GetAllProductInfo() ([]*models.StakingProduct, error) {
+	var products []*models.StakingProduct
+	sqlStr := "select * from StakingProducts"
 	rows, err := SqlDB.Queryx(sqlStr)
 	if err != nil {
 		return nil, err
 	}
 
 	for rows.Next() {
-		product := models.CreateProductDetails()
+		product := models.CreateStakingProduct()
 		err = rows.StructScan(product)
 		if err != nil {
 			return nil, err
 		}
-		product.CurrentAPY = 1234 //todo: get value from Colin's code
+		err = validate.Struct(product)
+		if err != nil {
+			return nil, err
+		}
 		products = append(products, product)
 	}
 	return products, err
 }
 
 func CreateOrder(order *models.Order) (int, error) {
+	err := validate.Struct(order)
+	if err != nil {
+		return 0, err
+	}
+
 	sqlStr := "insert into Orders (ProductID, UserDID, Type, Term, PaymentAddress, Amount, UserAddress) values (:ProductID, :UserDID, :Type, :Term, :PaymentAddress, :Amount, :UserAddress)"
 	result, err := SqlDB.NamedExec(sqlStr, order)
 	if err != nil {
@@ -177,6 +192,10 @@ func GetTransactionsByOrderID(orderID string) ([]*models.TXInfo, error) {
 		if err != nil {
 			return nil, err
 		}
+		err = validate.Struct(tx)
+		if err != nil {
+			return nil, err
+		}
 		transactions = append(transactions, tx)
 	}
 	return transactions, err
@@ -195,6 +214,10 @@ func GetTransactionsByUserDID(userDID string) ([]*models.TXInfo, error) {
 		if err != nil {
 			return nil, err
 		}
+		err = validate.Struct(tx)
+		if err != nil {
+			return nil, err
+		}
 		transactions = append(transactions, tx)
 	}
 	return transactions, err
@@ -210,6 +233,10 @@ func GetOrderInterestByID(orderID string) ([]*models.OrderInterest, error) {
 	for rows.Next() {
 		interest := models.CreateOrderInterest()
 		err = rows.StructScan(interest)
+		if err != nil {
+			return nil, err
+		}
+		err = validate.Struct(interest)
 		if err != nil {
 			return nil, err
 		}
@@ -258,6 +285,54 @@ func RedeemInterestByOrderID(orderID string, interestGained float64) error {
 	return nil
 }
 
+func GetHoldingOrders() ([]*models.Order, error) {
+	var orders []*models.Order
+	sqlStr := `select * from Orders where Type = 'Holding'`
+	rows, err := SqlDB.Queryx(sqlStr)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		order := models.CreateOrder()
+		err = rows.StructScan(order)
+		if err != nil {
+			logger.Warn(err)
+			continue
+		}
+		err = validate.Struct(order)
+		if err != nil {
+			logger.Warn(err)
+			continue
+		}
+		orders = append(orders, order)
+	}
+	return orders, nil
+}
+
+func GetOrdersByProductID(productID string) ([]*models.Order, error) {
+	var orders []*models.Order
+	sqlStr := `select * from Orders where ProductID = ? and Type = 'Holding'`
+	rows, err := SqlDB.Queryx(sqlStr, productID)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		order := models.CreateOrder()
+		err = rows.StructScan(order)
+		if err != nil {
+			logger.Warn(err)
+			continue
+		}
+		err = validate.Struct(order)
+		if err != nil {
+			logger.Warn(err)
+			continue
+		}
+		orders = append(orders, order)
+	}
+	return orders, nil
+}
+
 func GetOrderByID(orderID string) (*models.Order, error) {
 	order := models.CreateOrder()
 	sqlStr := "select * from Orders where OrderID = ?"
@@ -265,7 +340,21 @@ func GetOrderByID(orderID string) (*models.Order, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = validate.Struct(order)
+	if err != nil {
+		return nil, err
+	}
 	return order, nil
+}
+
+func GetOrderCreateDate(orderID string) (string, error) {
+	var createDate string
+	sqlStr := "select CreateDate from TXInfo where OrderID = ? and TXType = 'BuyIn'"
+	err := SqlDB.Get(&createDate, sqlStr, orderID)
+	if err != nil {
+		return "", err
+	}
+	return createDate, nil
 }
 
 func GetOrderRedeemableDate(orderID string) (string, error) {
@@ -288,6 +377,16 @@ func GetUserAddressByOrderID(orderID string) (string, error) {
 	return userAddress, nil
 }
 
+func GetOrderBuyInPrincipal(orderID string) (float64, error) {
+	var buyInAmount float64
+	sqlStr := "select Principal from TXInfo where OrderID = ? and TXType = 'BuyIn'"
+	err := SqlDB.Get(&buyInAmount, sqlStr, orderID)
+	if err != nil {
+		return 0.0, err
+	}
+	return buyInAmount, nil
+}
+
 func CompareMinimumInterest(orderID string, currentInterest float64) (bool, error) {
 	var result bool
 	sqlStr := "select StakingProducts.MinRedeemValue <= ? from StakingProducts join Orders on StakingProducts.ID = Orders.ProductID where Orders.OrderID = ?"
@@ -300,8 +399,12 @@ func CompareMinimumInterest(orderID string, currentInterest float64) (bool, erro
 }
 
 func UploadTransaction(tx *models.TXInfo) error {
+	err := validate.Struct(tx)
+	if err != nil {
+		return err
+	}
 	sqlStr := "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :RedeemableTime)"
-	_, err := SqlDB.NamedExec(sqlStr, tx)
+	_, err = SqlDB.NamedExec(sqlStr, tx)
 	if err != nil {
 		return err
 	}
@@ -309,6 +412,10 @@ func UploadTransaction(tx *models.TXInfo) error {
 }
 
 func SubmitBuyin(tx *models.TXInfo) error {
+	err := validate.Struct(tx)
+	if err != nil {
+		return err
+	}
 	dbTX, err := SqlDB.Beginx()
 	if err != nil {
 		return err
@@ -363,4 +470,106 @@ func GetProductNameForOrder(id string) (string, error) {
 		return "", err
 	}
 	return name, nil
+}
+
+func InsertPrincipalUpdate(productID string, totalPrincipal float64) error {
+	sqlStr := `insert into PrincipalUpdates (ProductID, TotalPrincipal) values (?, ?)`
+	_, err := SqlDB.Exec(sqlStr, productID, totalPrincipal)
+	return err
+}
+
+func GetLatestPrincipalUpdate(productID string) (*models.PrincipalUpdate, error) {
+	update := models.NewPrincipalUpdate()
+
+	sqlStr := "select * from PrincipalUpdates where ProductID = ? order by Time desc"
+	err := SqlDB.Get(update, sqlStr, productID)
+	if err != nil {
+		return nil, err
+	}
+
+	return update, nil
+}
+
+func GetPrincipalUpdates(productID string) ([]*models.PrincipalUpdate, error) {
+	sqlStr := `select * from PrincipalUpdates where ProductID = ? order by Time asc`
+	rows, err := SqlDB.Queryx(sqlStr, productID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	updates := models.NewPrincipalUpdateList()
+	for rows.Next() {
+		update := models.NewPrincipalUpdate()
+		err := rows.StructScan(update)
+		if err != nil {
+			return nil, err
+		}
+		err = validate.Struct(update)
+		if err != nil {
+			return nil, err
+		}
+		updates = append(updates, update)
+	}
+	return updates, nil
+}
+
+func InsertOrderInterestList(orderInterestList []*models.OrderInterest) error {
+	sqlStr := `insert into OrderInterest (OrderID, Time, APY, InterestGain, TotalInterestGain) 
+				values (:OrderID, :Time, :APY, :InterestGain, :TotalInterestGain)`
+	_, err := SqlDB.NamedExec(sqlStr, orderInterestList)
+	return err
+}
+
+func GetSortedOrderInterestListUntilDate(orderID string, until string) ([]*models.OrderInterest, error) {
+	sqlStr := `select * from OrderInterest where OrderID = ? and Time <= ? order by Time asc`
+	rows, err := SqlDB.Queryx(sqlStr, orderID, until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	interestList := models.CreateOrderInterestList()
+	for rows.Next() {
+		interest := models.CreateOrderInterest()
+		err := rows.StructScan(interest)
+		if err != nil {
+			return nil, err
+		}
+		err = validate.Struct(interest)
+		if err != nil {
+			return nil, err
+		}
+		interestList = append(interestList, interest)
+	}
+	return interestList, nil
+}
+
+func UpdateOrderAccumulatedInterest(orderID string, accumulatedInterest float64) error {
+	sqlStr := "update Orders set AccumulatedInterest = ? where OrderID = ?"
+	_, err := SqlDB.Exec(sqlStr, accumulatedInterest, orderID)
+	return err
+}
+
+func GetActiveOrdersProductIDs() ([]string, error) {
+	var ids []string
+	sqlStr := `select distinct ProductID from Orders where Type = 'Holding'`
+	rows, err := SqlDB.Queryx(sqlStr)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		id := new(string)
+		err := rows.Scan(id)
+		if err != nil {
+			logger.Warn(err)
+			continue
+		}
+		ids = append(ids, *id)
+	}
+	return ids, nil
+}
+
+func UpdateActiveOrdersProductID(oldProductID string, newProductID string) error {
+	sqlStr := `update Orders set ProductID = ? where ProductID = ? and Type = 'Holding'`
+	_, err := SqlDB.Exec(sqlStr, newProductID, oldProductID)
+	return err
 }

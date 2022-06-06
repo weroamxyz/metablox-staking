@@ -3,7 +3,7 @@ module github.com/metabloxStaking
 go 1.16
 
 require (
-	github.com/MetaBloxIO/metablox-foundation-services v0.0.0-20220518004845-8ab918611fe3
+	github.com/MetaBloxIO/metablox-foundation-services v0.0.0-20220531132944-8b5e5dec37f5
 	github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6 // indirect
 	github.com/coreos/go-etcd v2.0.0+incompatible // indirect
 	github.com/ethereum/go-ethereum v1.10.17 // indirect

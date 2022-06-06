@@ -1,15 +1,23 @@
 package controllers
 
 import (
+	"bytes"
 	"crypto/ecdsa"
+	"crypto/sha256"
+	"encoding/base64"
+	"errors"
+	"github.com/MetaBloxIO/metablox-foundation-services/did"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/metabloxStaking/dao"
+	"math/big"
 	"math/rand"
 	"strconv"
 	"strings"
 	"time"
 
+	serviceModels "github.com/MetaBloxIO/metablox-foundation-services/models"
 	"github.com/MetaBloxIO/metablox-foundation-services/presentations"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gin-gonic/gin"
 	"github.com/metabloxStaking/contract"
 	"github.com/metabloxStaking/errval"
@@ -50,7 +58,11 @@ func ApplyNonce(session string) (uint64, error) {
 	return NoncePool[session].Nonce, nil
 }
 
-func GetNonce(session string) (uint64, error) {
+func GetNonce(c *gin.Context) (uint64, error) {
+	session := c.GetHeader("session")
+	if len(session) == 0 {
+		return 0, errval.ErrInvalidSession
+	}
 	nonce, ok := NoncePool[session]
 	if !ok {
 		return 0, errval.ErrInvalidSession
@@ -66,8 +78,209 @@ func GetNonce(session string) (uint64, error) {
 	return nonce.Nonce, nil
 }
 
-func ActivateExchange(c *gin.Context) {
-	
+func ActivateExchange(c *gin.Context) error {
+	session := c.GetHeader("session")
+	if len(session) == 0 {
+		return errval.ErrInvalidSession
+	}
+
+	var vp models.MiningRoleInput
+
+	err := c.BindJSON(&vp)
+	if err != nil {
+		return err
+	}
+
+	err = validateDID(vp.SeedPresentation.Holder)
+	if err != nil {
+		return err
+	}
+
+	//TODO  Check VC credentialSubjects
+
+	_, err = presentations.VerifyVP(&vp.SeedPresentation) //going to fail at the moment as we don't have all the info to do this verification
+	if err != nil {                                       //skip this error check to avoid failures until we can properly verify seed presentations
+		return err
+	}
+
+	role := models.MiningRole{
+		DID:           vp.SeedPresentation.Holder,
+		WalletAddress: vp.WalletAddress,
+		Type:          vp.SeedPresentation.VerifiableCredential[0].Type[1],
+	}
+
+	err = dao.InsertMiningRole(&role)
+	return err
+}
+
+func NewExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
+	var input models.NewSeedExchangeInput
+	err := c.BindJSON(&input)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if input.Confirm.Did != input.Result.Target ||
+		input.Confirm.Target != input.Result.Did {
+		return nil, errval.ErrDIDMismatch
+	}
+
+	err = validateDID(input.Confirm.Did)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validateDID(input.Confirm.Target)
+	if err != nil {
+		return nil, err
+	}
+
+	ret, err := verifyNetworkReq(&input.Confirm)
+	if err != nil || !ret {
+		return nil, errval.ErrSignatureVerifyError
+	}
+
+	ret, err = verifyNetworkResult(&input.Result)
+	if err != nil || !ret {
+		return nil, errval.ErrSignatureVerifyError
+	}
+
+	sendSeedToken(input.Confirm.Target)
+	output, err := sendSeedToken(input.Confirm.Did)
+	return output, err
+}
+
+func sendSeedToken(DID string) (*models.SeedExchangeOutput, error) {
+	role, err := dao.GetMiningRole(DID)
+	if err != nil {
+		return nil, err
+	}
+	targetAddress := common.HexToAddress(role.WalletAddress)
+	//todo: may have to change calculation method
+	txHash, err := contract.TransferTokens(targetAddress, int(placeholderExchangeRate)) //todo: need a proper method of converting exchangeValue into an int
+	if err != nil {
+		return nil, err
+	}
+
+	exchange := models.NewSeedExchange("", DID, placeholderExchangeRate, placeholderExchangeRate)
+
+	err = foundationdao.UploadSeedExchange(exchange)
+	if err != nil {
+		return nil, err
+	}
+
+	txTime := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
+	output := models.NewSeedExchangeOutput(exchange.Amount, txHash, txTime, exchange.ExchangeRate)
+
+	return output, nil
+}
+
+func verifyNetworkReq(req *models.NetworkConfirmRequest) (bool, error) {
+	bytes, err := serializeNetworkReq(req)
+
+	if err != nil {
+		return false, err
+	}
+
+	resolutionMeta, holderDoc, _ := did.Resolve(req.Did, serviceModels.CreateResolutionOptions())
+	if resolutionMeta.Error != "" {
+		return false, errors.New(resolutionMeta.Error)
+	}
+
+	targetVM := holderDoc.VerificationMethod[0]
+
+	hashedData := sha256.Sum256(bytes)
+	pubData, err := base64.StdEncoding.DecodeString(req.PubKey)
+	if err != nil {
+		return false, err
+	}
+
+	pubKey, err := crypto.UnmarshalPubkey(pubData)
+	if err != nil {
+		return false, err
+	}
+
+	address := crypto.PubkeyToAddress(*pubKey)
+	accountId := "eip155:1666600000:" + address.Hex()
+
+	if accountId != targetVM.BlockchainAccountId {
+		return false, errors.New("pubkey and document mismatch")
+	}
+
+	sig, err := base64.StdEncoding.DecodeString(req.Signature)
+	if err != nil {
+		return false, err
+	}
+	r := new(big.Int).SetBytes(sig[:32])
+	s := new(big.Int).SetBytes(sig[32:])
+
+	return ecdsa.Verify(pubKey, hashedData[:], r, s), nil
+}
+
+func serializeNetworkReq(req *models.NetworkConfirmRequest) ([]byte, error) {
+	var buffer bytes.Buffer
+	buffer.WriteString(req.Did)
+	buffer.WriteString(req.Target)
+	buffer.WriteString(req.LastBlockHash)
+	buffer.WriteString(req.Quality)
+	buffer.WriteString(req.PubKey)
+	buffer.WriteString(req.Challenge)
+
+	return buffer.Bytes(), nil
+}
+
+func verifyNetworkResult(resp *models.NetworkConfirmResult) (bool, error) {
+	bytes, err := serializeNetworkResult(resp)
+
+	if err != nil {
+		return false, err
+	}
+
+	resolutionMeta, holderDoc, _ := did.Resolve(resp.Did, serviceModels.CreateResolutionOptions())
+	if resolutionMeta.Error != "" {
+		return false, errors.New(resolutionMeta.Error)
+	}
+
+	targetVM := holderDoc.VerificationMethod[0]
+
+	hashedData := sha256.Sum256(bytes)
+	pubData, err := base64.StdEncoding.DecodeString(resp.PubKey)
+	if err != nil {
+		return false, err
+	}
+
+	pubKey, err := crypto.UnmarshalPubkey(pubData)
+	if err != nil {
+		return false, err
+	}
+
+	address := crypto.PubkeyToAddress(*pubKey)
+	accountId := "eip155:1666600000:" + address.Hex()
+
+	if accountId != targetVM.BlockchainAccountId {
+		return false, errors.New("pubkey and document mismatch")
+	}
+
+	sig, err := base64.StdEncoding.DecodeString(resp.Signature)
+	if err != nil {
+		return false, err
+	}
+	r := new(big.Int).SetBytes(sig[:32])
+	s := new(big.Int).SetBytes(sig[32:])
+
+	return ecdsa.Verify(pubKey, hashedData[:], r, s), nil
+}
+
+func serializeNetworkResult(result *models.NetworkConfirmResult) ([]byte, error) {
+	var buffer bytes.Buffer
+	buffer.WriteString(result.Did)
+	buffer.WriteString(result.Target)
+	buffer.WriteString(result.LastBlockHash)
+	buffer.WriteString(result.PubKey)
+	buffer.WriteString(result.Challenge)
+
+	return buffer.Bytes(), nil
 }
 
 func ExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
@@ -82,15 +295,8 @@ func ExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 		return nil, err
 	}
 
-	minerPubKey := new(ecdsa.PublicKey) //todo: get this from some source
-
-	holderPubKey, err := crypto.UnmarshalPubkey(input.PublicKeyString)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = presentations.VerifyVP(&input.SeedPresentation, holderPubKey, minerPubKey) //going to fail at the moment as we don't have all the info to do this verification
-	if err != nil {                                                                     //skip this error check to avoid failures until we can properly verify seed presentations
+	_, err = presentations.VerifyVP(&input.SeedPresentation) //going to fail at the moment as we don't have all the info to do this verification
+	if err != nil {                                          //skip this error check to avoid failures until we can properly verify seed presentations
 		//return nil, error
 	}
 

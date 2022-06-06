@@ -238,3 +238,36 @@ func ExchangeSeedHandler(c *gin.Context) {
 
 	ResponseSuccess(c, output)
 }
+
+func GetNonceHandler(c *gin.Context) {
+	output, err := GetNonce(c)
+	if err != nil {
+		logger.Error(err)
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	ResponseSuccess(c, output)
+}
+
+func ActivateExchangeHandler(c *gin.Context) {
+	err := ActivateExchange(c)
+	if err != nil {
+		logger.Error(err)
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	ResponseSuccess(c, "")
+}
+
+func NewSeedExchangeHandler(c *gin.Context) {
+	output, err := NewExchangeSeed(c)
+	if err != nil {
+		logger.Error(err)
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	ResponseSuccess(c, output)
+}

@@ -26,6 +26,9 @@ func Setup() {
 	r.GET("/mining/exchangerate/:id", controllers.GetExchangeRateHandler)
 	r.GET("/mining/rewardhistory/:did", controllers.GetRewardHistoryHandler)
 	r.POST("/mining/exchange", controllers.ExchangeSeedHandler)
+	r.POST("/mining/nonce", controllers.GetNonceHandler)
+	r.POST("/mining/activate", controllers.ActivateExchangeHandler)
+	r.POST("/mining/newexchange", controllers.NewSeedExchangeHandler)
 
 	r.Run(":8889")
 }

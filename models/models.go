@@ -211,9 +211,11 @@ type VpNonce struct {
 type MiningRole struct {
 	DID           string
 	WalletAddress string
+	Type          string
 }
 
 type MiningRoleInput struct {
+	WalletAddress    string
 	SeedPresentation foundationModels.VerifiablePresentation
 }
 
@@ -237,8 +239,8 @@ type NetworkConfirmResult struct {
 }
 
 type NewSeedExchangeInput struct {
-	confirm NetworkConfirmRequest
-	result  NetworkConfirmResult
+	Confirm NetworkConfirmRequest
+	Result  NetworkConfirmResult
 }
 
 func CreateOrder() *Order {

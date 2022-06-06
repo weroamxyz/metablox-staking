@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"crypto/ecdsa"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +16,59 @@ import (
 	"github.com/metabloxStaking/foundationdao"
 	"github.com/metabloxStaking/models"
 )
+
+const (
+	NONCE_TIME_OUT = 120 * 1000
+)
+
+var NoncePool map[string]models.VpNonce = map[string]models.VpNonce{}
+
+func DeleteTimeoutSession() {
+	timer := time.NewTimer(time.Second * NONCE_TIME_OUT * 3)
+
+	go func(timer *time.Timer) {
+		select {
+		case <-timer.C:
+			t := time.Now()
+			for session, c := range NoncePool {
+				if t.UnixMilli()-c.Time.UnixMilli() > NONCE_TIME_OUT {
+					delete(NoncePool, session)
+				}
+			}
+		}
+	}(timer)
+}
+
+func ApplyNonce(session string) (uint64, error) {
+	_, ok := NoncePool[session]
+	if ok {
+		return 0, errval.ErrInvalidSession
+	}
+
+	NoncePool[session] = models.VpNonce{Session: session, Nonce: rand.Uint64(), Time: time.Now()}
+
+	return NoncePool[session].Nonce, nil
+}
+
+func GetNonce(session string) (uint64, error) {
+	nonce, ok := NoncePool[session]
+	if !ok {
+		return 0, errval.ErrInvalidSession
+	}
+
+	t := time.Now()
+	if t.UnixMilli()-nonce.Time.UnixMilli() > NONCE_TIME_OUT {
+		return 0, errval.ErrNonceTimeout
+	}
+
+	delete(NoncePool, session)
+
+	return nonce.Nonce, nil
+}
+
+func ActivateExchange(c *gin.Context) {
+	
+}
 
 func ExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 	input := models.CreateSeedExchangeInput()

@@ -1,7 +1,6 @@
 package interest
 
 import (
-	"fmt"
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
@@ -118,18 +117,12 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 		isRedeem bool // false = buy-in, true = redeem
 	}{
 		{"1", 200000, 271, false},
-		{"2", 100000, 800, false},
-		{"3", 100000, 1525, false},
-		{"4", 50000, 2433, false},
-		{"5", 20000, 2681, false},
-		{"6", 20000, 3347, false},
-		{"7", 10000, 3634, false},
+		{"2", 125000, 1525, false},
+		{"3", 125000, 2681, false},
+		{"4", 50000, 3634, false},
 		{"1", 0, 4591, true},
-		{"2", 0, 5120, true},
-		{"3", 0, 5845, true},
-		{"4", 0, 6753, true},
-		{"5", 0, 7001, true},
-		{"6", 0, 7667, true},
+		{"2", 0, 5845, true},
+		{"3", 0, 7001, true},
 	}
 
 	err := dao.InitTestDB()
@@ -141,12 +134,13 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 	productStart, err := time.Parse(TimeFormat, product.StartDate)
 	assert.Nil(t, err)
 
+	prevUpdate := productStart
 	for _, event := range events {
 		currTime := productStart.Add(time.Hour * time.Duration(event.hour))
-		if event.hour == 4591 {
-			fmt.Println("hi")
+		if currTime.After(prevUpdate) {
+			updateAllOrderInterest(currTime) // update before each new order buyin/redeem
+			prevUpdate = currTime
 		}
-		updateAllOrderInterest(currTime) // update before each new order buyin/redeem
 		assert.Nil(t, err)
 		if !event.isRedeem { // order buy-in
 			order := &models.Order{
@@ -173,54 +167,51 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 	}{
 		{orderID: "1", hour: 272, expectedLen: 1, expectedInterestGain: 11.57407407},
 
-		{orderID: "1", hour: 801, expectedLen: 530, expectedInterestGain: 7.716049383},
-		{orderID: "2", hour: 801, expectedLen: 1, expectedInterestGain: 3.858024691},
+		{orderID: "1", hour: 1526, expectedLen: 1255, expectedInterestGain: 7.122507123},
+		{orderID: "2", hour: 1526, expectedLen: 1, expectedInterestGain: 4.451566952},
 
-		{orderID: "1", hour: 1526, expectedLen: 1255, expectedInterestGain: 5.787037037},
-		{orderID: "2", hour: 1526, expectedLen: 726, expectedInterestGain: 2.893518519},
-		{orderID: "3", hour: 1526, expectedLen: 1, expectedInterestGain: 2.893518519},
-
-		{orderID: "1", hour: 2434, expectedLen: 2163, expectedInterestGain: 5.144032922},
-		{orderID: "2", hour: 2434, expectedLen: 1634, expectedInterestGain: 2.572016461},
-		{orderID: "3", hour: 2434, expectedLen: 909, expectedInterestGain: 2.572016461},
-		{orderID: "4", hour: 2434, expectedLen: 1, expectedInterestGain: 1.28600823},
-
-		{orderID: "1", hour: 2682, expectedLen: 2411, expectedInterestGain: 4.925137904},
-		{orderID: "2", hour: 2682, expectedLen: 1882, expectedInterestGain: 2.462568952},
-		{orderID: "3", hour: 2682, expectedLen: 1157, expectedInterestGain: 2.462568952},
-		{orderID: "4", hour: 2682, expectedLen: 249, expectedInterestGain: 1.231284476},
-		{orderID: "5", hour: 2682, expectedLen: 1, expectedInterestGain: 0.4925137904},
-
-		{orderID: "1", hour: 3348, expectedLen: 3077, expectedInterestGain: 4.724111867},
-		{orderID: "2", hour: 3348, expectedLen: 2548, expectedInterestGain: 2.362055933},
-		{orderID: "3", hour: 3348, expectedLen: 1823, expectedInterestGain: 2.362055933},
-		{orderID: "4", hour: 3348, expectedLen: 915, expectedInterestGain: 1.181027967},
-		{orderID: "5", hour: 3348, expectedLen: 667, expectedInterestGain: 0.4724111867},
-		{orderID: "6", hour: 3348, expectedLen: 1, expectedInterestGain: 0.4724111867},
+		{orderID: "1", hour: 2682, expectedLen: 2411, expectedInterestGain: 5.144032922},
+		{orderID: "2", hour: 2682, expectedLen: 1157, expectedInterestGain: 3.215020576},
+		{orderID: "3", hour: 2682, expectedLen: 1, expectedInterestGain: 3.215020576},
 
 		{orderID: "1", hour: 3635, expectedLen: 3364, expectedInterestGain: 4.62962963},
-		{orderID: "2", hour: 3635, expectedLen: 2835, expectedInterestGain: 2.314814815},
-		{orderID: "3", hour: 3635, expectedLen: 2110, expectedInterestGain: 2.314814815},
-		{orderID: "4", hour: 3635, expectedLen: 1202, expectedInterestGain: 1.157407407},
-		{orderID: "5", hour: 3635, expectedLen: 954, expectedInterestGain: 0.462962963},
-		{orderID: "6", hour: 3635, expectedLen: 288, expectedInterestGain: 0.462962963},
-		{orderID: "7", hour: 3635, expectedLen: 1, expectedInterestGain: 0.2314814815},
+		{orderID: "2", hour: 3635, expectedLen: 2110, expectedInterestGain: 2.893518519},
+		{orderID: "3", hour: 3635, expectedLen: 954, expectedInterestGain: 2.893518519},
+		{orderID: "4", hour: 3635, expectedLen: 1, expectedInterestGain: 1.157407407},
 
 		// order 1 redeemed, should stay at length 4320 from now on
 		{orderID: "1", hour: 4592, expectedLen: 4320, expectedInterestGain: 4.62962963},
-		{orderID: "2", hour: 4592, expectedLen: 3792, expectedInterestGain: 3.858024691},
-		{orderID: "3", hour: 4592, expectedLen: 3067, expectedInterestGain: 3.858024691},
-		{orderID: "4", hour: 4592, expectedLen: 2159, expectedInterestGain: 1.929012346},
-		{orderID: "5", hour: 4592, expectedLen: 1911, expectedInterestGain: 0.7716049383},
-		{orderID: "6", hour: 4592, expectedLen: 1245, expectedInterestGain: 0.7716049383},
-		{orderID: "7", hour: 4592, expectedLen: 958, expectedInterestGain: 0.3858024691},
+		{orderID: "2", hour: 4592, expectedLen: 3067, expectedInterestGain: 4.822530864},
+		{orderID: "3", hour: 4592, expectedLen: 1911, expectedInterestGain: 4.822530864},
+		{orderID: "4", hour: 4592, expectedLen: 958, expectedInterestGain: 1.929012346},
+
+		// all redeemed orders should stay at length 4320
+		{orderID: "1", hour: 5846, expectedLen: 4320, expectedInterestGain: 4.62962963},
+		{orderID: "2", hour: 5846, expectedLen: 4320, expectedInterestGain: 4.822530864},
+		{orderID: "3", hour: 5846, expectedLen: 3165, expectedInterestGain: 8.267195767},
+		{orderID: "4", hour: 5846, expectedLen: 2212, expectedInterestGain: 3.306878307},
+
+		{orderID: "1", hour: 7002, expectedLen: 4320, expectedInterestGain: 4.62962963},
+		{orderID: "2", hour: 7002, expectedLen: 4320, expectedInterestGain: 4.822530864},
+		{orderID: "3", hour: 7002, expectedLen: 4320, expectedInterestGain: 8.267195767},
+		{orderID: "4", hour: 7002, expectedLen: 3368, expectedInterestGain: 11.57407407},
+
+		// order 4 was never redeemed, so it should continue gaining interest in the next product term
+		{orderID: "1", hour: 7002, expectedLen: 4320, expectedInterestGain: 4.62962963},
+		{orderID: "2", hour: 7002, expectedLen: 4320, expectedInterestGain: 4.822530864},
+		{orderID: "3", hour: 7002, expectedLen: 4320, expectedInterestGain: 8.267195767},
+		{orderID: "4", hour: 12274, expectedLen: 8640, expectedInterestGain: 11.57407407},
 	}
 
 	// not using tt.Run because we don't want to set up the purchases multiple times
 	for _, tt := range tests {
 		logger.Infof("checking order %s at hour %d", tt.orderID, tt.hour)
-		currTimeStr := productStart.Add(time.Hour * time.Duration(tt.hour)).Format(TimeFormat)
-		result, err := dao.GetSortedOrderInterestListUntilDate(tt.orderID, currTimeStr)
+		currTime := productStart.Add(time.Hour * time.Duration(tt.hour))
+		if currTime.After(prevUpdate) {
+			updateAllOrderInterest(currTime) // update before each new order buyin/redeem
+			prevUpdate = currTime
+		}
+		result, err := dao.GetSortedOrderInterestListUntilDate(tt.orderID, currTime.Format(TimeFormat))
 		assert.Nil(t, err)
 		assert.Equal(t, tt.expectedLen, len(result))
 		if !assert.InEpsilon(t, tt.expectedInterestGain, result[len(result)-1].InterestGain, floatErrorTolerance) {

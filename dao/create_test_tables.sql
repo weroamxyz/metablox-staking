@@ -96,6 +96,7 @@ CREATE TABLE `StakingProducts` (
                                    `StartDate` timestamp(3) NOT NULL,
                                    `Term` int NOT NULL,
                                    `BurnedInterest` float NOT NULL DEFAULT '0',
+                                   `NextProductID` int NULL,
                                    `Status` tinyint NOT NULL DEFAULT '1',
                                    PRIMARY KEY (`ID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -112,7 +113,7 @@ CREATE TABLE `TXInfo` (
                           `PaymentNo` int NOT NULL AUTO_INCREMENT,
                           `OrderID` int NOT NULL,
                           `TXCurrencyType` varchar(10) NOT NULL,
-                          `TXType` enum('BuyIn','Redeem','Harvest') NOT NULL,
+                          `TXType` enum('BuyIn','Redeem','OrderClosure') NOT NULL,
                           `TXHash` varchar(66) DEFAULT NULL,
                           `Principal` float NOT NULL,
                           `Interest` float NOT NULL,

@@ -72,7 +72,7 @@ func executeSQLScript(path string) error {
 	return nil
 }
 
-func SubmitBuyinWithDate(tx *models.TXInfo) error {
+func submitBuyinWithDate(tx *models.TXInfo) error {
 	err := validate.Struct(tx)
 	if err != nil {
 		return err
@@ -107,7 +107,7 @@ func SubmitBuyinWithDate(tx *models.TXInfo) error {
 	return nil
 }
 
-func InsertPrincipalUpdateWithTime(productID string, totalPrincipal float64, time string) error {
+func insertPrincipalUpdateWithTime(productID string, totalPrincipal float64, time string) error {
 	sqlStr := `insert into PrincipalUpdates (ProductID, Time, TotalPrincipal) values (?, ?, ?)`
 	_, err := SqlDB.Exec(sqlStr, productID, time, totalPrincipal)
 	return err
@@ -122,16 +122,12 @@ func BuyinTestOrderWithDate(order *models.Order, date string) (string, error) {
 	// create corresponding txinfo
 	txInfo := &models.TXInfo{
 		OrderID:        strconv.Itoa(id),
-		TXCurrencyType: "",
-		TXType:         "BuyIn",
-		TXHash:         nil,
+		TXType:         models.TxTypeBuyIn,
 		Principal:      order.Amount,
-		Interest:       0,
-		UserAddress:    "",
 		CreateDate:     date,
-		RedeemableTime: "2022-01-01 00:00:00",
+		RedeemableTime: date,
 	}
-	err = SubmitBuyinWithDate(txInfo)
+	err = submitBuyinWithDate(txInfo)
 	if err != nil {
 		return "", err
 	}
@@ -147,9 +143,86 @@ func BuyinTestOrderWithDate(order *models.Order, date string) (string, error) {
 		return "", err
 	}
 
-	err = InsertPrincipalUpdateWithTime(order.ProductID, newPrincipal.TotalPrincipal, date)
+	err = insertPrincipalUpdateWithTime(order.ProductID, newPrincipal.TotalPrincipal, date)
 	if err != nil {
 		return "", err
 	}
 	return strconv.Itoa(id), nil
+}
+
+func RedeemTestOrderWithDate(orderID string, date string) error {
+	interestInfo, err := GetInterestInfoByOrderID(orderID)
+	if err != nil {
+		return err
+	}
+
+	order, err := GetOrderByID(orderID)
+	if err != nil {
+		return err
+	}
+
+	// create corresponding txinfo
+	txInfo := &models.TXInfo{
+		OrderID:        orderID,
+		TXType:         models.TxTypeOrderClosure,
+		Principal:      order.Amount,
+		CreateDate:     date,
+		RedeemableTime: date,
+	}
+
+	err = redeemOrderWithDate(txInfo, interestInfo.AccumulatedInterest)
+	if err != nil {
+		return err
+	}
+	/*
+		err = uploadTransactionWithDate(txInfo)
+		if err != nil {
+			return err
+		}
+	*/
+
+	// record change in staking pool's total principal
+	newPrincipal := models.NewPrincipalUpdate()
+	oldPrincipal, err := GetLatestPrincipalUpdate(order.ProductID)
+	if err != nil {
+		return err
+	}
+	newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal - order.Amount
+
+	err = InsertPrincipalUpdate(order.ProductID, newPrincipal.TotalPrincipal)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func redeemOrderWithDate(txInfo *models.TXInfo, interestGained float64) error {
+	dbtx, err := SqlDB.Beginx()
+	if err != nil {
+		return err
+	}
+
+	sqlStr := "update OrderInterest set TotalInterestGain = ? where OrderID = ? order by ID desc limit 1"
+	_, err = dbtx.Exec(sqlStr, interestGained, txInfo.OrderID)
+	if err != nil {
+		dbtx.Rollback()
+		return err
+	}
+
+	sqlStr = "update Orders set TotalInterestGained = AccumulatedInterest where OrderID = ?"
+	_, err = SqlDB.Query(sqlStr, txInfo.OrderID)
+	if err != nil {
+		dbtx.Rollback()
+		return err
+	}
+
+	sqlStr = "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, CreateDate, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :CreateDate, :RedeemableTime)"
+	_, err = SqlDB.NamedExec(sqlStr, txInfo)
+	if err != nil {
+		dbtx.Rollback()
+		return err
+	}
+
+	dbtx.Commit()
+	return nil
 }

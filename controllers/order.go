@@ -80,8 +80,7 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 
 	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeOrderClosure, txHash, 0, 0, userAddress, redeemableDate)
 
-	dao.RedeemOrder(txInfo, interestInfo.AccumulatedInterest)
-	err = dao.UploadTransaction(txInfo)
+	err = dao.RedeemOrder(txInfo, interestInfo.AccumulatedInterest)
 	if err != nil {
 		return nil, err
 	}

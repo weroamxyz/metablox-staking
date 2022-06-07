@@ -1,6 +1,7 @@
 package interest
 
 import (
+	"fmt"
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
@@ -110,18 +111,25 @@ func TestGetOrderInterestList(t *testing.T) {
 }
 
 func TestOrderInterest_MultipleUsers(t *testing.T) {
-	purchases := []struct {
-		id     string
-		amount float64
-		hour   int // number of hours since product start
+	events := []struct {
+		orderID  string
+		amount   float64
+		hour     int  // number of hours since product start
+		isRedeem bool // false = buy-in, true = redeem
 	}{
-		{"1", 200000, 271},
-		{"2", 100000, 800},
-		{"3", 100000, 1525},
-		{"4", 50000, 2433},
-		{"5", 20000, 2681},
-		{"6", 20000, 3347},
-		{"7", 10000, 3634},
+		{"1", 200000, 271, false},
+		{"2", 100000, 800, false},
+		{"3", 100000, 1525, false},
+		{"4", 50000, 2433, false},
+		{"5", 20000, 2681, false},
+		{"6", 20000, 3347, false},
+		{"7", 10000, 3634, false},
+		{"1", 0, 4591, true},
+		{"2", 0, 5120, true},
+		{"3", 0, 5845, true},
+		{"4", 0, 6753, true},
+		{"5", 0, 7001, true},
+		{"6", 0, 7667, true},
 	}
 
 	err := dao.InitTestDB()
@@ -133,20 +141,30 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 	productStart, err := time.Parse(TimeFormat, product.StartDate)
 	assert.Nil(t, err)
 
-	for _, purchase := range purchases {
-		currTime := productStart.Add(time.Hour * time.Duration(purchase.hour))
-		order := &models.Order{
-			ProductID: "1",
-			UserDID:   "test",
-			Type:      "Pending",
-			Amount:    purchase.amount,
+	for _, event := range events {
+		currTime := productStart.Add(time.Hour * time.Duration(event.hour))
+		if event.hour == 4591 {
+			fmt.Println("hi")
 		}
-		id, err := dao.BuyinTestOrderWithDate(order, currTime.Format(TimeFormat))
+		updateAllOrderInterest(currTime) // update before each new order buyin/redeem
 		assert.Nil(t, err)
-		assert.Equal(t, purchase.id, id)
+		if !event.isRedeem { // order buy-in
+			order := &models.Order{
+				ProductID: "1",
+				UserDID:   "test",
+				Type:      "Pending",
+				Amount:    event.amount,
+			}
+			id, err := dao.BuyinTestOrderWithDate(order, currTime.Format(TimeFormat))
+			assert.Nil(t, err)
+			assert.Equal(t, event.orderID, id)
+		} else {
+			err := dao.RedeemTestOrderWithDate(event.orderID, currTime.Format(TimeFormat))
+			assert.Nil(t, err)
+		}
 	}
 
-	// Each test checks the number of entries and the interest gain for all active orders one hour after each new order.
+	// Each test checks the number of entries and the interest gain for all active orders one hour after each new order or redemption.
 	tests := []struct {
 		orderID              string
 		hour                 int
@@ -187,14 +205,26 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 		{orderID: "5", hour: 3635, expectedLen: 954, expectedInterestGain: 0.462962963},
 		{orderID: "6", hour: 3635, expectedLen: 288, expectedInterestGain: 0.462962963},
 		{orderID: "7", hour: 3635, expectedLen: 1, expectedInterestGain: 0.2314814815},
+
+		// order 1 redeemed, should stay at length 4320 from now on
+		{orderID: "1", hour: 4592, expectedLen: 4320, expectedInterestGain: 4.62962963},
+		{orderID: "2", hour: 4592, expectedLen: 3792, expectedInterestGain: 3.858024691},
+		{orderID: "3", hour: 4592, expectedLen: 3067, expectedInterestGain: 3.858024691},
+		{orderID: "4", hour: 4592, expectedLen: 2159, expectedInterestGain: 1.929012346},
+		{orderID: "5", hour: 4592, expectedLen: 1911, expectedInterestGain: 0.7716049383},
+		{orderID: "6", hour: 4592, expectedLen: 1245, expectedInterestGain: 0.7716049383},
+		{orderID: "7", hour: 4592, expectedLen: 958, expectedInterestGain: 0.3858024691},
 	}
 
 	// not using tt.Run because we don't want to set up the purchases multiple times
 	for _, tt := range tests {
-		logger.Infof("testing order %s at hour %d", tt.orderID, tt.hour)
-		result, err := GetOrderInterestList(tt.orderID, productStart.Add(time.Hour*time.Duration(tt.hour)))
+		logger.Infof("checking order %s at hour %d", tt.orderID, tt.hour)
+		currTimeStr := productStart.Add(time.Hour * time.Duration(tt.hour)).Format(TimeFormat)
+		result, err := dao.GetSortedOrderInterestListUntilDate(tt.orderID, currTimeStr)
 		assert.Nil(t, err)
 		assert.Equal(t, tt.expectedLen, len(result))
-		assert.InEpsilon(t, tt.expectedInterestGain, result[len(result)-1].InterestGain, floatErrorTolerance)
+		if !assert.InEpsilon(t, tt.expectedInterestGain, result[len(result)-1].InterestGain, floatErrorTolerance) {
+			logger.Infof("expected = %f, actual = %f", tt.expectedInterestGain, result[len(result)-1].InterestGain)
+		}
 	}
 }

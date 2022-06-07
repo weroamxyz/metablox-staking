@@ -192,6 +192,10 @@ type SeedExchangeOutput struct {
 	ExchangeRate float64
 }
 
+type OrderInfoForCalculation struct {
+	OrderID string `db:"OrderID"`
+}
+
 func CreateOrder() *Order {
 	return &Order{}
 }

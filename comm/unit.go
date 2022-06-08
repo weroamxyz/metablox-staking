@@ -27,7 +27,7 @@ func (c Unit) FloatValue() *big.Float {
 func FromWei(number *big.Int, unit Unit) *big.Float {
 	var value = new(big.Float)
 	switch unit {
-	case unit:
+	case Wei:
 		value = value.SetInt(number)
 	case KWei:
 		value = value.SetInt(number).Quo(value, KWei.FloatValue())

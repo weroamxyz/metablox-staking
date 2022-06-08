@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/metabloxStaking/contract/tokenutil"
 	"github.com/metabloxStaking/interest"
 
-	"github.com/go-playground/validator/v10"
 	foundationContract "github.com/MetaBloxIO/metablox-foundation-services/contract"
+	"github.com/go-playground/validator/v10"
 	"github.com/metabloxStaking/contract"
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/foundationdao"
@@ -46,6 +47,8 @@ func main() {
 		return
 	}
 	interest.StartHourlyTimer()
+
+	tokenutil.Init()
 
 	routers.Setup()
 }

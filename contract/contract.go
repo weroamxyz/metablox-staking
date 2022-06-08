@@ -3,6 +3,9 @@ package contract
 import (
 	"context"
 	"crypto/ecdsa"
+	"github.com/metabloxStaking/comm/regutil"
+	"github.com/metabloxStaking/contract/tokenutil"
+	"github.com/syndtr/goleveldb/leveldb/errors"
 	"math/big"
 	"strings"
 
@@ -146,10 +149,22 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 	return nil
 }
 
-func RedeemOrder() string { //todo: full implementation
-	return "placeholderHash"
+func RedeemOrder(orderInfo *models.Order, rewardInfo *models.OrderInterestInfo) (*types.Transaction, error) {
+	// caculate total amount to send
+	if !regutil.IsETHAddress(orderInfo.UserAddress) {
+		return nil, errors.New(orderInfo.UserAddress + " is not a correct ETH address")
+	}
+	address := common.HexToAddress(orderInfo.UserAddress)
+	amount := new(big.Int).SetUint64(uint64(orderInfo.Amount + rewardInfo.AccumulatedInterest))
+	return tokenutil.Transfer(address, amount)
 }
 
-func RedeemInterest() string { //todo: full implementation
-	return "placeholderHash"
+func RedeemInterest(addressStr string, rewards float64) (*types.Transaction, error) {
+	if !regutil.IsETHAddress(addressStr) {
+		return nil, errors.New(addressStr + " is not a correct ETH address")
+	}
+	// caculate  interest to send
+	address := common.HexToAddress(addressStr)
+	amount := new(big.Int).SetUint64(uint64(rewards))
+	return tokenutil.Transfer(address, amount)
 }

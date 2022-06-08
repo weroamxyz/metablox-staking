@@ -2,13 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/metabloxStaking/interest"
 
-	"github.com/go-playground/validator/v10"
 	foundationContract "github.com/MetaBloxIO/metablox-foundation-services/contract"
+	"github.com/go-playground/validator/v10"
 	"github.com/metabloxStaking/contract"
 	"github.com/metabloxStaking/dao"
-	"github.com/metabloxStaking/foundationdao"
+	"github.com/metabloxStaking/interest"
 	"github.com/metabloxStaking/routers"
 	"github.com/metabloxStaking/settings"
 )
@@ -29,12 +28,6 @@ func main() {
 	}
 
 	err = dao.InitSql(validate)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	err = foundationdao.InitSql()
 	if err != nil {
 		fmt.Println(err)
 		return

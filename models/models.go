@@ -1,8 +1,9 @@
 package models
 
 import (
-	foundationModels "github.com/MetaBloxIO/metablox-foundation-services/models"
 	"time"
+
+	foundationModels "github.com/MetaBloxIO/metablox-foundation-services/models"
 )
 
 const TxTypeBuyIn = "BuyIn"
@@ -42,6 +43,9 @@ type StakingProduct struct {
 	Term           int     `db:"Term" json:"-"`
 	BurnedInterest float64 `db:"BurnedInterest" json:"-"`
 	NextProductID  *string `db:"NextProductID" json:"-"`
+	PaymentAddress string  `db:"PaymentAddress" json:"-"`
+	CurrencyType   string  `db:"CurrencyType" json:"-"`
+	Network        string  `db:"Network" json:"-"`
 	Status         bool    `db:"Status" json:"status"`
 }
 
@@ -209,9 +213,9 @@ type VpNonce struct {
 }
 
 type MiningRole struct {
-	DID           string
-	WalletAddress string
-	Type          string
+	DID           string `db:"DID"`
+	WalletAddress string `db:"WalletAddress"`
+	Type          string `db:"Type"`
 }
 
 type MiningRoleInput struct {

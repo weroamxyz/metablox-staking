@@ -2,6 +2,7 @@ package dao
 
 import (
 	"fmt"
+
 	"github.com/go-playground/validator/v10"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -594,7 +595,7 @@ func GetMiningRole(DID string) (*models.MiningRole, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var role models.MiningRole
-		err := rows.StructScan(role)
+		err := rows.StructScan(&role)
 		if err != nil {
 			return nil, err
 		}

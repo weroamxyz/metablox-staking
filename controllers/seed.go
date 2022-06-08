@@ -6,14 +6,15 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"github.com/MetaBloxIO/metablox-foundation-services/did"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/metabloxStaking/dao"
 	"math/big"
 	"math/rand"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/MetaBloxIO/metablox-foundation-services/did"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/metabloxStaking/dao"
 
 	serviceModels "github.com/MetaBloxIO/metablox-foundation-services/models"
 	"github.com/MetaBloxIO/metablox-foundation-services/presentations"
@@ -21,7 +22,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/metabloxStaking/contract"
 	"github.com/metabloxStaking/errval"
-	"github.com/metabloxStaking/foundationdao"
 	"github.com/metabloxStaking/models"
 )
 
@@ -131,10 +131,21 @@ func NewExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 		return nil, err
 	}
 
-	err = validateDID(input.Confirm.Target)
+	exists, err := dao.CheckIfDIDIsMiner(input.Confirm.Did)
+	if !exists || err != nil {
+		return nil, errval.ErrInvalidMiner
+	}
+
+	err = validateDID(input.Result.Did)
 	if err != nil {
 		return nil, err
 	}
+
+	exists, err = dao.CheckIfDIDIsValidator(input.Result.Did)
+	if !exists || err != nil {
+		return nil, errval.ErrInvalidValidator
+	}
+	serviceModels.GenerateTestDIDDocument()
 
 	ret, err := verifyNetworkReq(&input.Confirm)
 	if err != nil || !ret {
@@ -165,10 +176,12 @@ func sendSeedToken(DID string) (*models.SeedExchangeOutput, error) {
 
 	exchange := models.NewSeedExchange("", DID, placeholderExchangeRate, placeholderExchangeRate)
 
-	err = foundationdao.UploadSeedExchange(exchange)
+	//todo: uncomment when we have a valid value for the seed VcID. This function will fail if the VcID is an empty string
+	/*err = dao.UploadSeedExchange(exchange)
 	if err != nil {
+		fmt.Println("check2")
 		return nil, err
-	}
+	}*/
 
 	txTime := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
 	output := models.NewSeedExchangeOutput(exchange.Amount, txHash, txTime, exchange.ExchangeRate)
@@ -231,7 +244,7 @@ func serializeNetworkReq(req *models.NetworkConfirmRequest) ([]byte, error) {
 }
 
 func verifyNetworkResult(resp *models.NetworkConfirmResult) (bool, error) {
-	bytes, err := serializeNetworkResult(resp)
+	lbytes, err := serializeNetworkResult(resp)
 
 	if err != nil {
 		return false, err
@@ -244,7 +257,7 @@ func verifyNetworkResult(resp *models.NetworkConfirmResult) (bool, error) {
 
 	targetVM := holderDoc.VerificationMethod[0]
 
-	hashedData := sha256.Sum256(bytes)
+	hashedData := sha256.Sum256(lbytes)
 	pubData, err := base64.StdEncoding.DecodeString(resp.PubKey)
 	if err != nil {
 		return false, err
@@ -321,7 +334,7 @@ func ExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 
 	exchange := models.NewSeedExchange(vcID, seedInfo.ID, placeholderExchangeRate, amount)
 
-	err = foundationdao.UploadSeedExchange(exchange)
+	err = dao.UploadSeedExchange(exchange)
 	if err != nil {
 		return nil, err
 	}

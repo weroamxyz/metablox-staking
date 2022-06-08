@@ -1,51 +1,9 @@
-package foundationdao
+package dao
 
 import (
-	"fmt"
-
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/jmoiron/sqlx"
 	"github.com/metabloxStaking/models"
-	logger "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 )
-
-var SqlDB *sqlx.DB
-
-func InitSql() error {
-	var err error
-
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
-		viper.GetString("foundationmysql.user"),
-		viper.GetString("foundationmysql.password"),
-		viper.GetString("foundationmysql.host"),
-		viper.GetString("foundationmysql.port"),
-		viper.GetString("foundationmysql.dbname"),
-	)
-
-	SqlDB, err = sqlx.Open("mysql", dsn)
-	if err != nil {
-		logger.Error("Failed to open database: " + err.Error())
-		return err
-	}
-
-	//Set the maximum number of database connections
-
-	SqlDB.SetConnMaxLifetime(100)
-
-	//Set the maximum number of idle connections on the database
-
-	SqlDB.SetMaxIdleConns(10)
-
-	//Verify connection
-
-	if err := SqlDB.Ping(); err != nil {
-		logger.Error("open database fail: ", err)
-		return err
-	}
-	logger.Info("connect success")
-	return nil
-}
 
 func GetAllMinerInfo() ([]*models.MinerInfo, error) {
 	var miners []*models.MinerInfo
@@ -107,4 +65,26 @@ func GetExchangeRate(id string) (float64, error) {
 	sqlStr := "select ExchangeRate from ExchangeRate where ID = ?"
 	err := SqlDB.Get(&rate, sqlStr, id)
 	return rate, err
+}
+
+func CheckIfDIDIsValidator(did string) (bool, error) {
+	var count int
+	sqlStr := "select count(*) from WifiAccessInfo where ID = ? and Type = 'Validator'"
+	err := SqlDB.Get(&count, sqlStr, did)
+	if err != nil {
+		return false, err
+	}
+
+	return count != 0, nil
+}
+
+func CheckIfDIDIsMiner(did string) (bool, error) {
+	var count int
+	sqlStr := "select count(*) from MiningLicenseInfo where ID = ?"
+	err := SqlDB.Get(&count, sqlStr, did)
+	if err != nil {
+		return false, err
+	}
+
+	return count != 0, nil
 }

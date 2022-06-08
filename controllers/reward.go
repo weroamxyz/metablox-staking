@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/metabloxStaking/foundationdao"
+	"github.com/metabloxStaking/dao"
 )
 
 func GetRewardHistory(c *gin.Context) (float64, error) {
@@ -12,7 +12,7 @@ func GetRewardHistory(c *gin.Context) (float64, error) {
 		return 0, err
 	}
 
-	exchangeList, err := foundationdao.GetSeedHistory(userDID)
+	exchangeList, err := dao.GetSeedHistory(userDID)
 	if err != nil {
 		return 0, err
 	}

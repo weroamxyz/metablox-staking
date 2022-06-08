@@ -3,7 +3,6 @@ package tokenutil
 import (
 	"context"
 	"crypto/ecdsa"
-	"errors"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -33,12 +32,13 @@ func Init() {
 	tokenStr := viper.GetString("metablox.tokenAddress")
 	walletStr := viper.GetString("metablox.walletPrivateKey")
 
-	client, err := ethclient.Dial(rpcUrl)
+	var err error
+	client, err = ethclient.Dial(rpcUrl)
 	if err != nil {
 		logger.Panicf("connecting to rpc node failed")
 	}
 
-	chainId, err := client.ChainID(context.Background())
+	chainId, err = client.ChainID(context.Background())
 	if err != nil {
 		logger.Panicf("query current chainID failed")
 	}
@@ -116,7 +116,7 @@ func Transfer(to common.Address, amount *big.Int) (*types.Transaction, error) {
 	// 4. check eth Balance
 	ethBalance, _ := EthPendingBalance(fromAddress)
 	if !checkEthBalance(ethBalance, signer.GasPrice, signer.GasLimit) {
-		return nil, errors.New("eth balance is not enough")
+		return nil, errval.ErrETHBalance
 	}
 	// 5. return raw response
 	return token.Transfer(signer, to, amount)

@@ -136,7 +136,7 @@ func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, err
 	}
 
-	tx, err := contract.RedeemInterest(userAddress, currentInterest)
+	tx, err := contract.RedeemOrder(userAddress, currentInterest)
 	if err != nil {
 		return nil, err
 	}

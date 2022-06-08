@@ -2,7 +2,6 @@ package erc20
 
 import (
 	"context"
-	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -15,8 +14,8 @@ import (
 )
 
 var (
-	rpcUrl = "https://api.s0.b.hmny.io"
 	// MBLX contract (testnet)
+	rpcUrl       = "https://api.s0.b.hmny.io"
 	tokenAddress = common.HexToAddress("0x7aEC610a4a3287B7b210bC04bDA781B2afd7538c")
 	wallet, _    = crypto.HexToECDSA("9fd8f6049129527c63830aead266bcf7c53aa82109422da9335aac0c0a36a968")
 	chainId      = big.NewInt(1666700000)
@@ -50,12 +49,11 @@ func TestErc20(t *testing.T) {
 
 	// 5.transfer token to user
 	tx, err := token.Transfer(signer, common.HexToAddress("0x58883f2b3F59EaA85aBa8D33b7f97b6f8c7f495e"), comm.ToWei(100000, comm.Ether))
-	fmt.Println(comm.ToWei(1000000, comm.Ether))
 	if err != nil {
 		logger.Error("send tx failed: ", err)
 		return
 	}
-	logger.Infof("交易hash=%s\n", tx.Hash().Hex())
+	logger.Infof("tx hash=%s\n", tx.Hash().Hex())
 	// 6. check contact call
 	symbol, _ := token.Symbol(&bind.CallOpts{})
 	assert.Equal(t, "MBLX", symbol, "token symbol error")

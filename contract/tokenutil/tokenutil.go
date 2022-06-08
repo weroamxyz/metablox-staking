@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/metabloxStaking/contract/erc20"
+	"github.com/metabloxStaking/errval"
 	logger "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"math/big"
@@ -32,17 +33,16 @@ func Init() {
 	tokenStr := viper.GetString("metablox.tokenAddress")
 	walletStr := viper.GetString("metablox.walletPrivateKey")
 
-	rpc, err := ethclient.Dial(rpcUrl)
+	client, err := ethclient.Dial(rpcUrl)
 	if err != nil {
 		logger.Panicf("connecting to rpc node failed")
 	}
-	client = rpc
 
-	id, err := rpc.ChainID(context.Background())
+	chainId, err := client.ChainID(context.Background())
 	if err != nil {
 		logger.Panicf("query current chainID failed")
 	}
-	chainId = id
+	logger.Panicf("current chainID is %s", chainId)
 
 	tokenAddress = common.HexToAddress(tokenStr)
 	wallet, _ = crypto.HexToECDSA(walletStr)
@@ -101,9 +101,12 @@ func Transfer(to common.Address, amount *big.Int) (*types.Transaction, error) {
 		return nil, err
 	}
 	// 2. check token balance
-	balance, _ := BalanceOf(fromAddress)
+	balance, err := token.BalanceOf(&bind.CallOpts{}, fromAddress)
+	if err != nil {
+		return nil, err
+	}
 	if balance.Cmp(amount) < 0 {
-		return nil, errors.New("balance of the admin wallet is not enough")
+		return nil, errval.ErrTokenBalance
 	}
 	// 3. build signer instance
 	signer, err := NewSigner(DefaultGasLimit)

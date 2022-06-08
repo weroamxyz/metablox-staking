@@ -695,7 +695,3 @@ func (_Erc20 *Erc20Filterer) ParseTransfer(log types.Log) (*Erc20Transfer, error
 	}
 	return event, nil
 }
-
-func init() {
-	//erc
-}

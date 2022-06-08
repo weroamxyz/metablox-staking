@@ -77,12 +77,13 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, err
 	}
 
-	tx, err := contract.RedeemOrder(order, interestInfo)
+	amount := (interestInfo.AccumulatedInterest - interestInfo.TotalInterestGained) + order.Amount
+	tx, err := contract.RedeemOrder(order.UserAddress, amount)
 	if err != nil {
 		return nil, err
 	}
 	txData, _ := tx.MarshalJSON()
-	logger.Infof("tx %s send,detail:%s"+tx.Hash().Hex(), string(txData))
+	logger.Infof("tx %s send,detail:%s", tx.Hash().Hex(), string(txData))
 
 	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeOrderClosure, tx.Hash().Hex(), 0, 0, userAddress, redeemableDate)
 
@@ -92,7 +93,6 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, err
 	}
 
-	amount := (interestInfo.AccumulatedInterest - interestInfo.TotalInterestGained) + order.Amount
 	time := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
 	output := models.NewRedeemOrderOutput(productName, amount, time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
 

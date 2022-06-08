@@ -112,9 +112,6 @@ func Transfer(to common.Address, amount *big.Int) (*types.Transaction, error) {
 	}
 	// 4. check eth Balance
 	ethBalance, _ := EthPendingBalance(fromAddress)
-	if ethBalance.Cmp(amount) < 0 {
-		return nil, errors.New("token balance is not enough")
-	}
 	if !checkEthBalance(ethBalance, signer.GasPrice, signer.GasLimit) {
 		return nil, errors.New("eth balance is not enough")
 	}

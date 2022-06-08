@@ -149,13 +149,13 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 	return nil
 }
 
-func RedeemOrder(orderInfo *models.Order, rewardInfo *models.OrderInterestInfo) (*types.Transaction, error) {
+func RedeemOrder(addressStr string, amountF float64) (*types.Transaction, error) {
 	// caculate total amount to send
-	if !regutil.IsETHAddress(orderInfo.UserAddress) {
-		return nil, errors.New(orderInfo.UserAddress + " is not a correct ETH address")
+	if !regutil.IsETHAddress(addressStr) {
+		return nil, errors.New(addressStr + " is not a correct ETH address")
 	}
-	address := common.HexToAddress(orderInfo.UserAddress)
-	amount := new(big.Int).SetUint64(uint64(orderInfo.Amount + rewardInfo.AccumulatedInterest))
+	address := common.HexToAddress(addressStr)
+	amount := new(big.Int).SetUint64(uint64(amountF))
 	return tokenutil.Transfer(address, amount)
 }
 

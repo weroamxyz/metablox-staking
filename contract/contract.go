@@ -141,7 +141,12 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 	}
 
 	amount := events[0].(*big.Int)
-	if amount.Int64() != int64(order.Amount) { //todo: proper type conversion
+	conversionRate := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil) //db stores values in MBLX, need to convert to minimum units
+	fltConversionRate := new(big.Float).SetInt(conversionRate)
+	dbAmount := fltConversionRate.Mul(fltConversionRate, big.NewFloat(1.3))
+	intDBAmount, accuracy := dbAmount.Int(nil)
+
+	if intDBAmount.Sub(intDBAmount, amount).Int64()*int64(accuracy) > 1000 { //need some margin of error to account for inaccuracy when converting between big.Float and big.Int
 		return errval.ErrAmountComparisonFail
 	}
 

@@ -25,6 +25,9 @@ func Setup() {
 
 	r.GET("/mining/exchangerate/:id", controllers.GetExchangeRateHandler)
 	r.POST("/mining/exchange", controllers.ExchangeSeedHandler)
+	r.POST("/mining/nonce", controllers.GetNonceHandler)
+	r.POST("/mining/activate", controllers.ActivateExchangeHandler)
+	r.POST("/mining/newexchange", controllers.NewSeedExchangeHandler)
 
 	didParamGroup.Use(middleware.DIDParamMiddleware())
 	{

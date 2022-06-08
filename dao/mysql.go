@@ -590,3 +590,32 @@ func UpdateActiveOrdersProductID(oldProductID string, newProductID string) error
 	_, err := SqlDB.Exec(sqlStr, newProductID, oldProductID)
 	return err
 }
+
+/* 	DID           string
+WalletAddress string
+Type          string*/
+
+func InsertMiningRole(role *models.MiningRole) error {
+	sqlStr := `insert into MiningRole (DID, WalletAddress, Type ) 
+				values (:DID, :WalletAddress, :Type)`
+	_, err := SqlDB.NamedExec(sqlStr, role)
+	return err
+}
+
+func GetMiningRole(DID string) (*models.MiningRole, error) {
+	sqlStr := `select * from MiningRole where DID = ?`
+	rows, err := SqlDB.Queryx(sqlStr, DID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var role models.MiningRole
+		err := rows.StructScan(&role)
+		if err != nil {
+			return nil, err
+		}
+		return &role, nil
+	}
+	return nil, nil
+}

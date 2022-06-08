@@ -53,7 +53,7 @@ func SubmitBuyin(c *gin.Context) (*models.SubmitBuyinOutput, error) {
 		return nil, err
 	}
 
-	output := models.NewSubmitBuyinOutput(product.ProductName, order.Amount, date, txInfo.TXCurrencyType, txInfo.UserAddress)
+	output := models.NewSubmitBuyinOutput(product.ProductName, order.Amount, date, txInfo.UserAddress, txInfo.TXCurrencyType)
 
 	// record change in staking pool's total principal
 	newPrincipal := models.NewPrincipalUpdate()

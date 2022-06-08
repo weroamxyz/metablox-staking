@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/metabloxStaking/foundationdao"
+	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 )
 
@@ -58,7 +58,7 @@ func GetMinerList(c *gin.Context) ([]*models.MinerInfo, error) {
 		return minerList, nil
 	}
 
-	minerList, err := foundationdao.GetAllVirtualMinerInfo() //return all virtual miners along with the closest one
+	minerList, err := dao.GetAllVirtualMinerInfo() //return all virtual miners along with the closest one
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func GetMinerList(c *gin.Context) ([]*models.MinerInfo, error) {
 }
 
 func GetAllMiners() ([]*models.MinerInfo, error) {
-	minerList, err := foundationdao.GetAllMinerInfo()
+	minerList, err := dao.GetAllMinerInfo()
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func GetMinerByID(c *gin.Context) (*models.MinerInfo, error) {
 
 	minerID := c.Query("minerid")
 
-	miner, err := foundationdao.GetMinerInfoByID(minerID)
+	miner, err := dao.GetMinerInfoByID(minerID)
 	if err != nil {
 		return nil, err
 	}

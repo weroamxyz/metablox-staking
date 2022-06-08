@@ -1,15 +1,16 @@
 package controllers
 
 import (
-	"github.com/metabloxStaking/interest"
 	"time"
+
+	"github.com/metabloxStaking/interest"
 
 	"github.com/MetaBloxIO/metablox-foundation-services/did"
 	"github.com/gin-gonic/gin"
 	"github.com/metabloxStaking/contract"
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/errval"
-	"github.com/metabloxStaking/foundationdao"
+	logger "github.com/sirupsen/logrus"
 )
 
 const placeholderExchangeRate = 30.0
@@ -166,7 +167,7 @@ func GetMinerByIDHandler(c *gin.Context) {
 
 func GetExchangeRateHandler(c *gin.Context) {
 	exchangeRateID := c.Param("id")
-	exchangeRate, err := foundationdao.GetExchangeRate(exchangeRateID)
+	exchangeRate, err := dao.GetExchangeRate(exchangeRateID)
 	if err != nil {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
@@ -188,6 +189,39 @@ func GetRewardHistoryHandler(c *gin.Context) {
 func ExchangeSeedHandler(c *gin.Context) {
 	output, err := ExchangeSeed(c)
 	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	ResponseSuccess(c, output)
+}
+
+func GetNonceHandler(c *gin.Context) {
+	output, err := GetNonce(c)
+	if err != nil {
+		logger.Error(err)
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	ResponseSuccess(c, output)
+}
+
+func ActivateExchangeHandler(c *gin.Context) {
+	err := ActivateExchange(c)
+	if err != nil {
+		logger.Error(err)
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	ResponseSuccess(c, "")
+}
+
+func NewSeedExchangeHandler(c *gin.Context) {
+	output, err := NewExchangeSeed(c)
+	if err != nil {
+		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}

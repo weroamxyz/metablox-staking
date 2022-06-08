@@ -134,6 +134,16 @@ CREATE TABLE `OrderInterest` (
                                  PRIMARY KEY (`ID`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+
+DROP TABLE IF EXISTS `MiningRole`;
+CREATE TABLE `MiningRole` (
+    `DID` varchar(128) NOT NULL,
+    `WalletAddress` varchar(128) NOT NULL,
+    `Type` varchar(64) NOT NULL,
+    PRIMARY KEY (`DID`)
+)ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

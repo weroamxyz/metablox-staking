@@ -42,7 +42,7 @@ func Init() {
 	if err != nil {
 		logger.Panicf("query current chainID failed")
 	}
-	logger.Panicf("current chainID is %s", chainId)
+	logger.Debugf("current chainID is %s", chainId)
 
 	tokenAddress = common.HexToAddress(tokenStr)
 	wallet, _ = crypto.HexToECDSA(walletStr)

@@ -3,6 +3,8 @@ package contract
 import (
 	"context"
 	"crypto/ecdsa"
+	"github.com/metabloxStaking/comm/regutil"
+	"github.com/metabloxStaking/contract/tokenutil"
 	"math/big"
 	"strings"
 
@@ -146,10 +148,12 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 	return nil
 }
 
-func RedeemOrder() string { //todo: full implementation
-	return "placeholderHash"
-}
-
-func RedeemInterest() string { //todo: full implementation
-	return "placeholderHash"
+func RedeemOrder(addressStr string, amountF float64) (*types.Transaction, error) {
+	// verify eth address
+	if !regutil.IsETHAddress(addressStr) {
+		return nil, errval.ErrETHAddress
+	}
+	address := common.HexToAddress(addressStr)
+	amount := new(big.Int).SetUint64(uint64(amountF))
+	return tokenutil.Transfer(address, amount)
 }

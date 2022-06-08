@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,7 +41,7 @@ func SubmitBuyin(c *gin.Context) (*models.SubmitBuyinOutput, error) {
 		return nil, err
 	}
 
-	txInfo := models.NewTXInfo(input.OrderID, models.CurrencyTypeMBLX, models.TXTypeBuyin, input.TxHash, order.Amount, 0, order.UserAddress, time.Now().AddDate(0, 0, 179).Truncate(24*time.Hour).Format("2006-01-02 15:04:05.000"))
+	txInfo := models.NewTXInfo(input.OrderID, models.CurrencyTypeMBLX, models.TxTypeBuyIn, input.TxHash, order.Amount, 0, order.UserAddress, time.Now().AddDate(0, 0, 179).Truncate(24*time.Hour).Format("2006-01-02 15:04:05.000"))
 
 	err = dao.SubmitBuyin(txInfo)
 	if err != nil {
@@ -53,5 +54,22 @@ func SubmitBuyin(c *gin.Context) (*models.SubmitBuyinOutput, error) {
 	}
 
 	output := models.NewSubmitBuyinOutput(product.ProductName, order.Amount, date, txInfo.TXCurrencyType, txInfo.UserAddress)
+
+	// record change in staking pool's total principal
+	newPrincipal := models.NewPrincipalUpdate()
+	oldPrincipal, err := dao.GetLatestPrincipalUpdate(product.ID)
+	if err == nil {
+		newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal + txInfo.Principal
+	} else if err == sql.ErrNoRows {
+		newPrincipal.TotalPrincipal = txInfo.Principal
+	} else {
+		return nil, err
+	}
+
+	err = dao.InsertPrincipalUpdate(product.ID, newPrincipal.TotalPrincipal)
+	if err != nil {
+		return nil, err
+	}
+
 	return output, err
 }

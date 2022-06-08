@@ -4,21 +4,21 @@ import (
 	foundationModels "github.com/MetaBloxIO/metablox-foundation-services/models"
 )
 
+const TxTypeBuyIn = "BuyIn"
+const TxTypeInterestOnly = "InterestOnly"
+const TxTypeOrderClosure = "OrderClosure"
+
 const OrderTypePending = "Pending"
 const OrderTypeHolding = "Holding"
 const OrderTypeComplete = "Complete"
 
 const CurrencyTypeMBLX = "MBLX"
 
-const TXTypeBuyin = "BuyIn"
-const TXTypeInterest = "InterestOnly"
-const TXTypeClosure = "OrderClosure"
-
 type Order struct {
 	OrderID             string  `db:"OrderID"`
 	ProductID           string  `db:"ProductID"`
 	UserDID             string  `db:"UserDID"`
-	Type                string  `db:"Type"`
+	Type                string  `db:"Type" validate:"required,oneof=Pending Holding Complete"`
 	Term                int     `db:"Term"`
 	AccumulatedInterest float64 `db:"AccumulatedInterest"`
 	TotalInterestGained float64 `db:"TotalInterestGained"`
@@ -28,18 +28,20 @@ type Order struct {
 }
 
 type StakingProduct struct {
-	ID             string  `db:"ID"`
-	ProductName    string  `db:"ProductName"`
-	MinOrderValue  int     `db:"MinOrderValue"`
-	TopUpLimit     float64 `db:"TopUpLimit"`
-	MinRedeemValue int     `db:"MinRedeemValue"`
-	LockUpPeriod   int     `db:"LockUpPeriod"`
-	DefaultAPY     float64 `db:"DefaultAPY"`
-	CreateDate     string  `db:"CreateDate"`
-	StartDate      string  `db:"StartDate"`
-	Term           int     `db:"Term"`
-	BurnedInterest float64 `db:"BurnedInterest"`
-	Status         bool    `db:"Status"`
+	ID             string  `db:"ID" json:"id"`
+	ProductName    string  `db:"ProductName" json:"productName"`
+	MinOrderValue  int     `db:"MinOrderValue" json:"minOrderValue"`
+	TopUpLimit     float64 `db:"TopUpLimit" json:"topUpLimit"`
+	MinRedeemValue int     `db:"MinRedeemValue" json:"minRedeemValue"`
+	LockUpPeriod   int     `db:"LockUpPeriod" json:"lockUpPeriod"`
+	DefaultAPY     float64 `db:"DefaultAPY" json:"-"`
+	CurrentAPY     float64 `json:"currentAPY" json:"-"`
+	CreateDate     string  `db:"CreateDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
+	StartDate      string  `db:"StartDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
+	Term           int     `db:"Term" json:"-"`
+	BurnedInterest float64 `db:"BurnedInterest" json:"-"`
+	NextProductID  *string `db:"NextProductID" json:"-"`
+	Status         bool    `db:"Status" json:"status"`
 }
 
 type User struct {
@@ -52,19 +54,19 @@ type TXInfo struct {
 	PaymentNo      string  `db:"PaymentNo"`
 	OrderID        string  `db:"OrderID"`
 	TXCurrencyType string  `db:"TXCurrencyType"`
-	TXType         string  `db:"TXType"`
+	TXType         string  `db:"TXType" validate:"required,oneof=BuyIn InterestOnly OrderClosure"`
 	TXHash         *string `db:"TXHash"`
 	Principal      float64 `db:"Principal"`
 	Interest       float64 `db:"Interest"`
 	UserAddress    string  `db:"UserAddress"`
-	CreateDate     string  `db:"CreateDate"`
-	RedeemableTime string  `db:"RedeemableTime"`
+	CreateDate     string  `db:"CreateDate" validate:"omitempty,datetime=2006-01-02 15:04:05"`
+	RedeemableTime string  `db:"RedeemableTime" validate:"required,datetime=2006-01-02 15:04:05"`
 }
 
 type OrderInterest struct {
 	ID                string  `db:"ID"`
 	OrderID           string  `db:"OrderID"`
-	Time              string  `db:"Time"`
+	Time              string  `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
 	APY               float64 `db:"APY"`
 	InterestGain      float64 `db:"InterestGain"`
 	TotalInterestGain float64 `db:"TotalInterestGain"`
@@ -75,6 +77,13 @@ type PrincipalUpdates struct {
 	ProductID      string  `db:"ProductID"`
 	Time           string  `db:"Time"`
 	TotalPrincipal float64 `db:"TotalPrincipal"`
+}
+
+type PaymentInfo struct {
+	PaymentAddress string `db:"PaymentAddress"`
+	Tag            string `db:"Tag"`
+	CurrencyType   string `db:"CurrencyType"`
+	Network        string `db:"Network"`
 }
 
 type MinerInfo struct {
@@ -170,6 +179,13 @@ type RedeemOrderOuput struct {
 	TXHash         string
 }
 
+type PrincipalUpdate struct {
+	ID             string  `db:"ID"`
+	ProductID      string  `db:"ProductID"`
+	Time           string  `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
+	TotalPrincipal float64 `db:"TotalPrincipal"`
+}
+
 type SeedExchangeInput struct {
 	DID              string //placeholder
 	WalletAddress    string
@@ -233,6 +249,10 @@ func NewTXInfo(orderID, txCurrencyType, txType, txHash string, principal, intere
 
 func CreateOrderInterest() *OrderInterest {
 	return &OrderInterest{}
+}
+
+func CreateOrderInterestList() []*OrderInterest {
+	return []*OrderInterest{}
 }
 
 func CreateMinerInfo() *MinerInfo {
@@ -304,6 +324,14 @@ func CreateOrderInterestInfo() *OrderInterestInfo {
 
 func CreateRedeemOrderOutput() *RedeemOrderOuput {
 	return &RedeemOrderOuput{}
+}
+
+func NewPrincipalUpdate() *PrincipalUpdate {
+	return &PrincipalUpdate{}
+}
+
+func NewPrincipalUpdateList() []*PrincipalUpdate {
+	return []*PrincipalUpdate{}
 }
 
 func NewRedeemOrderOutput(productName string, amount float64, time, toAddress, txCurrencyType, txHash string) *RedeemOrderOuput {

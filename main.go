@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/metabloxStaking/contract/tokenutil"
+	"github.com/metabloxStaking/interest"
 
 	foundationContract "github.com/MetaBloxIO/metablox-foundation-services/contract"
+	"github.com/go-playground/validator/v10"
 	"github.com/metabloxStaking/contract"
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/foundationdao"
@@ -12,6 +15,8 @@ import (
 )
 
 func main() {
+	validate := validator.New()
+
 	err := settings.Init()
 	if err != nil {
 		fmt.Println(err)
@@ -24,7 +29,7 @@ func main() {
 		return
 	}
 
-	err = dao.InitSql()
+	err = dao.InitSql(validate)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -41,5 +46,9 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+	interest.StartHourlyTimer()
+
+	tokenutil.Init()
+
 	routers.Setup()
 }

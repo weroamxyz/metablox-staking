@@ -5,8 +5,8 @@ import (
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-
 	"strconv"
+
 	"testing"
 	"time"
 )
@@ -65,25 +65,33 @@ func TestCalculateCurrentAPY(t *testing.T) {
 	}
 }
 
-func TestGetOrderInterestList(t *testing.T) {
+func TestUpdateOrderInterest(t *testing.T) {
 	err := dao.InitTestDB()
 	assert.Nil(t, err)
 	defer dao.CleanupTestDB()
 
+	product, err := dao.GetProductInfoByID("1")
+	assert.Nil(t, err)
+
 	order := &models.Order{
-		ProductID: "1",
+		ProductID: product.ID,
 		UserDID:   "test",
 		Type:      "Pending",
 		Amount:    400,
 	}
 	id, err := dao.CreateOrder(order)
 	assert.Nil(t, err)
+	orderID := strconv.Itoa(id)
 
-	err = dao.InsertPrincipalUpdate(order.ProductID, order.Amount)
+	now := time.Now().UTC()
+	err = dao.InsertPrincipalUpdate(product.ID, order.Amount)
+	assert.Nil(t, err)
+
+	principalUpdates, err := dao.GetPrincipalUpdates(product.ID)
 	assert.Nil(t, err)
 
 	txInfo := &models.TXInfo{
-		OrderID:        strconv.Itoa(id),
+		OrderID:        orderID,
 		TXCurrencyType: "",
 		TXType:         "BuyIn",
 		TXHash:         nil,
@@ -95,14 +103,20 @@ func TestGetOrderInterestList(t *testing.T) {
 	err = dao.SubmitBuyin(txInfo)
 	assert.Nil(t, err)
 
-	until := time.Now().Add(time.Hour)
-	result, err := GetOrderInterestList(strconv.Itoa(id), until)
+	until := now.Add(time.Hour)
+
+	err = UpdateOrderInterest(orderID, product, principalUpdates, until)
+	assert.Nil(t, err)
+	result, err := dao.GetSortedOrderInterestListUntilDate(orderID, until.Format(TimeFormat))
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
 	assert.InEpsilon(t, 11.574074, result[0].InterestGain, floatErrorTolerance)
 
-	until = until.Add(time.Hour * 9)
-	result, err = GetOrderInterestList(strconv.Itoa(id), until)
+	until = now.Add(time.Hour * 10)
+
+	err = UpdateOrderInterest(orderID, product, principalUpdates, until)
+	assert.Nil(t, err)
+	result, err = dao.GetSortedOrderInterestListUntilDate(orderID, until.Format(TimeFormat))
 	assert.Nil(t, err)
 	assert.Equal(t, 10, len(result))
 	assert.InEpsilon(t, 11.574074, result[9].InterestGain, floatErrorTolerance)

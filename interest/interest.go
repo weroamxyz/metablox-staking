@@ -37,32 +37,16 @@ func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal float64)
 	return (A / totalPrincipal) * (360.0 / N)
 }
 
-func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInterest, error) {
+func UpdateOrderInterest(orderID string, product *models.StakingProduct, principalUpdates []*models.PrincipalUpdate, until time.Time) error {
 	targetTime := TruncateToHour(until.UTC())
-
-	order, err := dao.GetOrderByID(orderID)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to get order, %s", err.Error()))
-	}
-
-	product, err := dao.GetProductInfoByID(order.ProductID)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to get product, %s", err.Error()))
-	}
-
-	principalUpdates, err := dao.GetPrincipalUpdates(product.ID)
-	if err != nil {
-		return nil, err
-	}
 	orderPrincipal, err := dao.GetOrderBuyInPrincipal(orderID)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	principalIndex := 0
 
 	interestList, err := dao.GetSortedOrderInterestListUntilDate(orderID, targetTime.Format(TimeFormat))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// latestTime will be set to either the latest orderInterest + 1 hour, or order date + 1 hour if there is no orderInterest yet
@@ -70,7 +54,7 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 	if len(interestList) == 0 {
 		orderCreateDateStr, err := dao.GetOrderCreateDate(orderID)
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("failed to get txInfo, %s", err.Error()))
+			return errors.New(fmt.Sprintf("failed to get txInfo, %s", err.Error()))
 		}
 		latestTime, _ = time.Parse(TimeFormat, orderCreateDateStr)
 	} else {
@@ -100,6 +84,7 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 			}
 		}
 		// calculate numbers at given time
+		principalIndex := 0
 		totalPrincipal := 0.0
 		principalIndex = findMostRecentPrincipalUpdate(principalUpdates, latestTime)
 		if principalIndex >= 0 {
@@ -107,7 +92,7 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 		}
 		interest, err := calculateOrderInterest(orderID, orderPrincipal, product, latestTime, totalPrincipal)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		interestToAdd = append(interestToAdd, interest)
@@ -126,16 +111,16 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 
 		err = dao.InsertOrderInterestList(interestToAdd)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		err = dao.UpdateOrderAccumulatedInterest(orderID, sum)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		interestList = append(interestList, interestToAdd...)
 	}
-	return interestList, nil
+	return nil
 }
 
 func calculateOrderInterest(orderID string, orderPrincipal float64, product *models.StakingProduct, when time.Time, totalPrincipal float64) (*models.OrderInterest, error) {
@@ -180,13 +165,13 @@ func StartHourlyTimer() {
 }
 
 func updateAllOrderInterest(currentTime time.Time) {
-	// 1. carry over the expired products' total principal (individual products will update their ids as they calculate)
 	products, err := dao.GetAllProductInfo()
 	if err != nil {
 		logger.Warn(err)
 		return
 	}
 	for _, product := range products {
+		// 1. carry over the expired products' total principal (individual products will update their ids as they calculate)
 		if product.Status && isProductExpired(product, currentTime) {
 			if product.NextProductID == nil {
 				logger.Warn("tried to get nil NextProductID in product ", product.ID)
@@ -209,18 +194,23 @@ func updateAllOrderInterest(currentTime time.Time) {
 				logger.Warn(err)
 			}
 		}
-	}
 
-	// 2. update order interest for all active orders
-	orderIDs, err := dao.GetHoldingOrderIDs()
-	if err != nil {
-		logger.Warn(err)
-		return
-	}
-	for _, id := range orderIDs {
-		_, err = GetOrderInterestList(id, currentTime)
+		// 2. update order interest for all active orders
+		orderIDs, err := dao.GetHoldingOrderIDsForProduct(product.ID)
 		if err != nil {
 			logger.Warn(err)
+			return
+		}
+		principalUpdates, err := dao.GetPrincipalUpdates(product.ID)
+		if err != nil {
+			logger.Warn(err)
+			return
+		}
+		for _, id := range orderIDs {
+			err = UpdateOrderInterest(id, product, principalUpdates, currentTime)
+			if err != nil {
+				logger.Warn(err)
+			}
 		}
 	}
 }

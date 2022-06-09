@@ -2,7 +2,6 @@ package dao
 
 import (
 	"fmt"
-
 	"github.com/go-playground/validator/v10"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -298,10 +297,10 @@ func RedeemInterestByOrderID(orderID string, interestGained float64) error {
 	return nil
 }
 
-func GetHoldingOrderIDs() ([]string, error) {
+func GetHoldingOrderIDsForProduct(productID string) ([]string, error) {
 	var ids []string
-	sqlStr := `select distinct Orders.OrderID from Orders where Type = 'Holding' and not exists (select * from TXInfo where TXInfo.OrderID = Orders.OrderID and TXInfo.TXType = 'OrderClosure')`
-	rows, err := SqlDB.Queryx(sqlStr)
+	sqlStr := `select distinct Orders.OrderID from Orders where Type = 'Holding' and ProductID = ? and not exists (select * from TXInfo where TXInfo.OrderID = Orders.OrderID and TXInfo.TXType = 'OrderClosure')`
+	rows, err := SqlDB.Queryx(sqlStr, productID)
 	if err != nil {
 		return nil, err
 	}

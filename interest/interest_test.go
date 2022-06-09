@@ -16,7 +16,7 @@ const floatErrorTolerance = 1e-6
 func TestTruncateToHour(t *testing.T) {
 	time1, _ := time.Parse("2006-01-02 15:04:05", "2022-05-27 13:31:00")
 	expected1, _ := time.Parse("2006-01-02 15:04:05", "2022-05-27 13:00:00")
-	assert.Equal(t, expected1, time1)
+	assert.Equal(t, expected1, TruncateToHour(time1))
 }
 
 func TestCalculateCurrentAPY(t *testing.T) {

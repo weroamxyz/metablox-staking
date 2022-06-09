@@ -298,28 +298,23 @@ func RedeemInterestByOrderID(orderID string, interestGained float64) error {
 	return nil
 }
 
-func GetHoldingOrders() ([]*models.Order, error) {
-	var orders []*models.Order
-	sqlStr := `select * from Orders where Type = 'Holding'`
+func GetHoldingOrderIDs() ([]string, error) {
+	var ids []string
+	sqlStr := `select distinct Orders.OrderID from Orders where Type = 'Holding' and not exists (select * from TXInfo where TXInfo.OrderID = Orders.OrderID and TXInfo.TXType = 'OrderClosure')`
 	rows, err := SqlDB.Queryx(sqlStr)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
-		order := models.CreateOrder()
-		err = rows.StructScan(order)
+		id := new(string)
+		err = rows.Scan(id)
 		if err != nil {
 			logger.Warn(err)
 			continue
 		}
-		err = validate.Struct(order)
-		if err != nil {
-			logger.Warn(err)
-			continue
-		}
-		orders = append(orders, order)
+		ids = append(ids, *id)
 	}
-	return orders, nil
+	return ids, nil
 }
 
 func GetOrdersByProductID(productID string) ([]*models.Order, error) {
@@ -489,6 +484,12 @@ func GetProductNameForOrder(id string) (string, error) {
 	return name, nil
 }
 
+func UpdateProductStatus(id string, status bool) error {
+	sqlStr := `update StakingProducts set Status = ? where ID = ?`
+	_, err := SqlDB.Exec(sqlStr, status, id)
+	return err
+}
+
 func InsertPrincipalUpdate(productID string, totalPrincipal float64) error {
 	sqlStr := `insert into PrincipalUpdates (ProductID, TotalPrincipal) values (?, ?)`
 	_, err := SqlDB.Exec(sqlStr, productID, totalPrincipal)
@@ -585,9 +586,9 @@ func GetActiveOrdersProductIDs() ([]string, error) {
 	return ids, nil
 }
 
-func UpdateActiveOrdersProductID(oldProductID string, newProductID string) error {
-	sqlStr := `update Orders set ProductID = ? where ProductID = ? and Type = 'Holding'`
-	_, err := SqlDB.Exec(sqlStr, newProductID, oldProductID)
+func UpdateOrderNewProductID(orderID string, newProductID string) error {
+	sqlStr := `update Orders set ProductID = ? where OrderID = ?`
+	_, err := SqlDB.Exec(sqlStr, newProductID, orderID)
 	return err
 }
 

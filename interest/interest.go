@@ -1,18 +1,17 @@
 package interest
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
 	"sort"
-	"strconv"
-	"strings"
 	"time"
 )
 
-const timeFormat = "2006-01-02 15:04:05"
+const TimeFormat = "2006-01-02 15:04:05"
 
 func CalculateInterest() float64 { //placeholder
 	return 12.34
@@ -39,7 +38,7 @@ func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal float64)
 }
 
 func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInterest, error) {
-	targetTime := TruncateToHour(until)
+	targetTime := TruncateToHour(until.UTC())
 
 	order, err := dao.GetOrderByID(orderID)
 	if err != nil {
@@ -55,9 +54,13 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 	if err != nil {
 		return nil, err
 	}
+	orderPrincipal, err := dao.GetOrderBuyInPrincipal(orderID)
+	if err != nil {
+		return nil, err
+	}
 	principalIndex := 0
 
-	interestList, err := dao.GetSortedOrderInterestListUntilDate(orderID, targetTime.Format(timeFormat))
+	interestList, err := dao.GetSortedOrderInterestListUntilDate(orderID, targetTime.Format(TimeFormat))
 	if err != nil {
 		return nil, err
 	}
@@ -69,12 +72,12 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("failed to get txInfo, %s", err.Error()))
 		}
-		latestTime, _ = time.Parse(timeFormat, orderCreateDateStr)
+		latestTime, _ = time.Parse(TimeFormat, orderCreateDateStr)
 	} else {
 		latestOrderInterest := interestList[len(interestList)-1]
-		latestTime, _ = time.Parse(timeFormat, latestOrderInterest.Time)
+		latestTime, _ = time.Parse(TimeFormat, latestOrderInterest.Time)
 	}
-	latestTime = TruncateToHour(latestTime)
+	latestTime = TruncateToHour(latestTime.UTC())
 	latestTime = latestTime.Add(time.Hour)
 
 	// generate orderInterest until it reaches the current hour
@@ -82,6 +85,12 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 	for !targetTime.Before(latestTime) {
 		if isProductExpired(product, latestTime) {
 			if product.NextProductID == nil {
+				logger.Warn("tried to get nil NextProductID in product ", product.ID)
+				break
+			}
+			err = dao.UpdateOrderNewProductID(orderID, *product.NextProductID)
+			if err != nil {
+				logger.Warn(err)
 				break
 			}
 			product, err = dao.GetProductInfoByID(*product.NextProductID)
@@ -96,7 +105,7 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 		if principalIndex >= 0 {
 			totalPrincipal = principalUpdates[principalIndex].TotalPrincipal
 		}
-		interest, err := calculateOrderInterest(order, product, latestTime, totalPrincipal)
+		interest, err := calculateOrderInterest(orderID, orderPrincipal, product, latestTime, totalPrincipal)
 		if err != nil {
 			return nil, err
 		}
@@ -129,25 +138,20 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 	return interestList, nil
 }
 
-func calculateOrderInterest(order *models.Order, product *models.StakingProduct, when time.Time, totalPrincipal float64) (*models.OrderInterest, error) {
-	principal, err := dao.GetOrderBuyInPrincipal(order.OrderID)
-	if err != nil {
-		return nil, err
-	}
-
+func calculateOrderInterest(orderID string, orderPrincipal float64, product *models.StakingProduct, when time.Time, totalPrincipal float64) (*models.OrderInterest, error) {
 	interest := models.CreateOrderInterest()
-	interest.OrderID = order.OrderID
+	interest.OrderID = orderID
 	interest.APY = CalculateCurrentAPY(product, totalPrincipal)
-	interest.Time = when.Format(timeFormat)
+	interest.Time = when.Format(TimeFormat)
 
 	N := float64(product.LockUpPeriod)
-	interest.InterestGain = (interest.APY / (360.0 / N)) * principal * (1 / (N * 24))
+	interest.InterestGain = (interest.APY / (360.0 / N)) * orderPrincipal * (1 / (N * 24))
 	return interest, nil
 }
 
 func findMostRecentPrincipalUpdate(principalUpdates []*models.PrincipalUpdate, now time.Time) int {
 	index := sort.Search(len(principalUpdates), func(i int) bool {
-		updateTime, _ := time.Parse(timeFormat, principalUpdates[i].Time)
+		updateTime, _ := time.Parse(TimeFormat, principalUpdates[i].Time)
 		return updateTime.After(now)
 	})
 	return index - 1 // the last index for which updateTime is before now
@@ -164,28 +168,8 @@ func TruncateToHour(dateTime time.Time) time.Time {
 func StartHourlyTimer() {
 	go func() {
 		for {
-			currentTime := TruncateToHour(time.Now())
-			ok := true
-
-			err := updateExpiredProducts(currentTime)
-			if err != nil {
-				logger.Warn(err)
-				ok = false
-			}
-
-			// 2. update order interest for all active orders
-			if ok {
-				orders, err := dao.GetHoldingOrders()
-				if err != nil {
-					logger.Warn(err)
-				}
-				for _, order := range orders {
-					_, err = GetOrderInterestList(order.OrderID, currentTime)
-					if err != nil {
-						logger.Warn(err)
-					}
-				}
-			}
+			currentTime := TruncateToHour(time.Now().UTC())
+			updateAllOrderInterest(currentTime)
 
 			nextHour := currentTime.Add(time.Hour)
 			timer := time.NewTimer(nextHour.Sub(time.Now()))
@@ -195,40 +179,55 @@ func StartHourlyTimer() {
 	return
 }
 
-// updateExpiredProducts updates the ProductHistory table, then the ProductID column of associated Orders
-func updateExpiredProducts(currentTime time.Time) error {
-	productIDs, err := dao.GetActiveOrdersProductIDs()
+func updateAllOrderInterest(currentTime time.Time) {
+	// 1. carry over the expired products' total principal (individual products will update their ids as they calculate)
+	products, err := dao.GetAllProductInfo()
 	if err != nil {
-		return err
+		logger.Warn(err)
+		return
 	}
-	for _, productID := range productIDs {
-		product, err := dao.GetProductInfoByID(productID)
-		if err != nil {
-			return err
-		}
-		if isProductExpired(product, currentTime) {
-			err = dao.UpdateActiveOrdersProductID(productID, *product.NextProductID)
+	for _, product := range products {
+		if product.Status && isProductExpired(product, currentTime) {
+			if product.NextProductID == nil {
+				logger.Warn("tried to get nil NextProductID in product ", product.ID)
+				continue
+			}
+			principalUpdate, err := dao.GetLatestPrincipalUpdate(product.ID)
 			if err != nil {
-				return err
+				if err != sql.ErrNoRows {
+					logger.Warn(err)
+				}
+				continue
+			}
+			err = dao.InsertPrincipalUpdate(*product.NextProductID, principalUpdate.TotalPrincipal)
+			if err != nil {
+				logger.Warn(err)
+				continue
+			}
+			err = dao.UpdateProductStatus(product.ID, false)
+			if err != nil {
+				logger.Warn(err)
 			}
 		}
 	}
-	return nil
+
+	// 2. update order interest for all active orders
+	orderIDs, err := dao.GetHoldingOrderIDs()
+	if err != nil {
+		logger.Warn(err)
+		return
+	}
+	for _, id := range orderIDs {
+		_, err = GetOrderInterestList(id, currentTime)
+		if err != nil {
+			logger.Warn(err)
+		}
+	}
 }
 
 func isProductExpired(product *models.StakingProduct, currentTime time.Time) bool {
-	startTime, _ := time.Parse(timeFormat, product.StartDate)
-	startTime = TruncateToHour(startTime)
+	startTime, _ := time.Parse(TimeFormat, product.StartDate)
+	startTime = TruncateToHour(startTime.UTC())
 	endTime := startTime.Add(time.Hour * 24 * time.Duration(product.LockUpPeriod))
 	return !currentTime.Before(endTime)
-}
-
-func FormatFloat(f float64) string {
-	// round to 6 decimal places after decimal point
-	truncated := strconv.FormatFloat(f, 'f', 6, 64)
-	// trim up to four trailing zeroes (to a minimum of 2 decimal places)
-	for i := 0; i < 4; i++ {
-		truncated = strings.TrimSuffix(truncated, "0")
-	}
-	return truncated
 }

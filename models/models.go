@@ -60,7 +60,7 @@ type TXInfo struct {
 	OrderID        string  `db:"OrderID"`
 	TXCurrencyType string  `db:"TXCurrencyType"`
 	TXType         string  `db:"TXType" validate:"required,oneof=BuyIn InterestOnly OrderClosure"`
-	TXHash         *string `db:"TXHash"`
+	TXHash         string  `db:"TXHash"`
 	Principal      float64 `db:"Principal"`
 	Interest       float64 `db:"Interest"`
 	UserAddress    string  `db:"UserAddress"`
@@ -286,7 +286,7 @@ func NewTXInfo(orderID, txCurrencyType, txType, txHash string, principal, intere
 		orderID,
 		txCurrencyType,
 		txType,
-		&txHash,
+		txHash,
 		principal,
 		interest,
 		userAddress,

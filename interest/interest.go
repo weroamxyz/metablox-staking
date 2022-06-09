@@ -2,8 +2,6 @@ package interest
 
 import (
 	"database/sql"
-	"errors"
-	"fmt"
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
@@ -54,7 +52,7 @@ func UpdateOrderInterest(orderID string, product *models.StakingProduct, princip
 	if len(interestList) == 0 {
 		orderCreateDateStr, err := dao.GetOrderCreateDate(orderID)
 		if err != nil {
-			return errors.New(fmt.Sprintf("failed to get txInfo, %s", err.Error()))
+			return err
 		}
 		latestTime, _ = time.Parse(TimeFormat, orderCreateDateStr)
 	} else {
@@ -90,10 +88,7 @@ func UpdateOrderInterest(orderID string, product *models.StakingProduct, princip
 		if principalIndex >= 0 {
 			totalPrincipal = principalUpdates[principalIndex].TotalPrincipal
 		}
-		interest, err := calculateOrderInterest(orderID, orderPrincipal, product, latestTime, totalPrincipal)
-		if err != nil {
-			return err
-		}
+		interest := calculateOrderInterest(orderID, orderPrincipal, product, latestTime, totalPrincipal)
 
 		interestToAdd = append(interestToAdd, interest)
 		latestTime = latestTime.Add(time.Hour)
@@ -123,7 +118,7 @@ func UpdateOrderInterest(orderID string, product *models.StakingProduct, princip
 	return nil
 }
 
-func calculateOrderInterest(orderID string, orderPrincipal float64, product *models.StakingProduct, when time.Time, totalPrincipal float64) (*models.OrderInterest, error) {
+func calculateOrderInterest(orderID string, orderPrincipal float64, product *models.StakingProduct, when time.Time, totalPrincipal float64) *models.OrderInterest {
 	interest := models.CreateOrderInterest()
 	interest.OrderID = orderID
 	interest.APY = CalculateCurrentAPY(product, totalPrincipal)
@@ -131,7 +126,7 @@ func calculateOrderInterest(orderID string, orderPrincipal float64, product *mod
 
 	N := float64(product.LockUpPeriod)
 	interest.InterestGain = (interest.APY / (360.0 / N)) * orderPrincipal * (1 / (N * 24))
-	return interest, nil
+	return interest
 }
 
 func findMostRecentPrincipalUpdate(principalUpdates []*models.PrincipalUpdate, now time.Time) int {

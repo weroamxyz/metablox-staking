@@ -94,7 +94,7 @@ func TestUpdateOrderInterest(t *testing.T) {
 		OrderID:        orderID,
 		TXCurrencyType: "",
 		TXType:         "BuyIn",
-		TXHash:         nil,
+		TXHash:         "",
 		Principal:      order.Amount,
 		Interest:       0,
 		UserAddress:    "",

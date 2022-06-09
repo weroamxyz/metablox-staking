@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	logger "github.com/sirupsen/logrus"
 	"math"
 	"strconv"
@@ -24,6 +25,26 @@ func CreateOrder(c *gin.Context) (*models.OrderOutput, error) {
 	valid := did.IsDIDValid(did.SplitDIDString(input.UserDID))
 	if !valid {
 		return nil, errval.ErrBadDID
+	}
+
+	totalPrincipal := 0.0
+	principalUpdate, err := dao.GetLatestPrincipalUpdate(input.ProductID)
+	if err == nil {
+		totalPrincipal = principalUpdate.TotalPrincipal
+	} else if err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	product, err := dao.GetProductInfoByID(input.ProductID)
+	if err != nil {
+		return nil, err
+	}
+
+	if input.Amount < float64(product.MinOrderValue) {
+		return nil, errval.ErrOrderAmountTooLow
+	}
+	if totalPrincipal+input.Amount > product.TopUpLimit {
+		return nil, errval.ErrOrderExceedsTopUpLimit
 	}
 
 	paymentAddress, err := dao.GetPaymentAddress(input.ProductID)

@@ -1,6 +1,8 @@
 package models
 
 import (
+	"time"
+
 	foundationModels "github.com/MetaBloxIO/metablox-foundation-services/models"
 )
 
@@ -41,6 +43,9 @@ type StakingProduct struct {
 	Term           int     `db:"Term" json:"-"`
 	BurnedInterest float64 `db:"BurnedInterest" json:"-"`
 	NextProductID  *string `db:"NextProductID" json:"-"`
+	PaymentAddress string  `db:"PaymentAddress" json:"-"`
+	CurrencyType   string  `db:"CurrencyType" json:"-"`
+	Network        string  `db:"Network" json:"-"`
 	Status         bool    `db:"Status" json:"status"`
 }
 
@@ -72,6 +77,13 @@ type OrderInterest struct {
 	TotalInterestGain float64 `db:"TotalInterestGain"`
 }
 
+type PrincipalUpdates struct {
+	ID             string  `db:"ID"`
+	ProductID      string  `db:"ProductID"`
+	Time           string  `db:"Time"`
+	TotalPrincipal float64 `db:"TotalPrincipal"`
+}
+
 type PaymentInfo struct {
 	PaymentAddress string `db:"PaymentAddress"`
 	Tag            string `db:"Tag"`
@@ -92,6 +104,7 @@ type MinerInfo struct {
 	IsMinable    bool     `db:"IsMinable"`
 	DID          string   `db:"DID"`
 	Host         string   `db:"Host"`
+	IsVirtual    bool     `db:"IsVirtual"`
 }
 
 type SeedExchange struct {
@@ -190,6 +203,56 @@ type SeedExchangeOutput struct {
 	TxHash       string
 	TxTime       string
 	ExchangeRate float64
+}
+
+type VpNonceInput struct {
+	Session string
+}
+
+type VpNonceOutput struct {
+	Session string
+	Nonce   uint64
+}
+
+type VpNonce struct {
+	Session string
+	Nonce   uint64
+	Time    time.Time
+}
+
+type MiningRole struct {
+	DID           string `db:"DID"`
+	WalletAddress string `db:"WalletAddress"`
+	Type          string `db:"Type"`
+}
+
+type MiningRoleInput struct {
+	WalletAddress    string
+	SeedPresentation foundationModels.VerifiablePresentation
+}
+
+type NetworkConfirmRequest struct {
+	Did           string `json:"did"`
+	Target        string `json:"target"`
+	LastBlockHash string `json:"lastBlockHash"`
+	Quality       string `json:"quality"`
+	PubKey        string `json:"pubKey"`
+	Challenge     string `json:"challenge"`
+	Signature     string `json:"signature"`
+}
+
+type NetworkConfirmResult struct {
+	Did           string `json:"did"`
+	Target        string `json:"target"`
+	LastBlockHash string `json:"lastBlockHash"`
+	PubKey        string `json:"pubKey"`
+	Challenge     string `json:"challenge"`
+	Signature     string `json:"signature"`
+}
+
+type NewSeedExchangeInput struct {
+	Confirm NetworkConfirmRequest
+	Result  NetworkConfirmResult
 }
 
 func CreateOrder() *Order {

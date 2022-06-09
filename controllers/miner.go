@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/metabloxStaking/foundationdao"
+	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 )
 
 func GetClosestMiner(latitude, longitude string) (*models.MinerInfo, error) {
-	minerList, err := GetMinerList()
+	minerList, err := GetAllMiners()
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +44,37 @@ func GetClosestMiner(latitude, longitude string) (*models.MinerInfo, error) {
 	return closestMiner, nil
 }
 
-func GetMinerList() ([]*models.MinerInfo, error) {
-	minerList, err := foundationdao.GetAllMinerInfo()
+func GetMinerList(c *gin.Context) ([]*models.MinerInfo, error) {
+
+	latitude := c.Query("latitude")
+	longitude := c.Query("longitude")
+
+	if latitude == "" || longitude == "" {
+		minerList, err := GetAllMiners()
+		if err != nil {
+			return nil, err
+		}
+		ResponseSuccess(c, minerList)
+		return minerList, nil
+	}
+
+	minerList, err := dao.GetAllVirtualMinerInfo() //return all virtual miners along with the closest one
+	if err != nil {
+		return nil, err
+	}
+
+	closestMiner, err := GetClosestMiner(latitude, longitude)
+	if err != nil {
+		return nil, err
+	}
+
+	minerList = append(minerList, closestMiner)
+
+	return minerList, nil
+}
+
+func GetAllMiners() ([]*models.MinerInfo, error) {
+	minerList, err := dao.GetAllMinerInfo()
 	if err != nil {
 		return nil, err
 	}
@@ -57,20 +86,14 @@ func GetMinerList() ([]*models.MinerInfo, error) {
 		}
 		miner.CreateTime = strconv.FormatFloat(float64(createDate.UnixNano())/float64(time.Second), 'f', 3, 64)
 	}
-
 	return minerList, nil
 }
 
 func GetMinerByID(c *gin.Context) (*models.MinerInfo, error) {
-	did := c.Query("did")
-	err := validateDID(did)
-	if err != nil {
-		return nil, err
-	}
 
 	minerID := c.Query("minerid")
 
-	miner, err := foundationdao.GetMinerInfoByID(minerID)
+	miner, err := dao.GetMinerInfoByID(minerID)
 	if err != nil {
 		return nil, err
 	}

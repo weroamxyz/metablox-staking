@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	logger "github.com/sirupsen/logrus"
 	"math"
 	"strconv"
 	"time"
@@ -25,7 +26,12 @@ func CreateOrder(c *gin.Context) (*models.OrderOutput, error) {
 		return nil, errval.ErrBadDID
 	}
 
-	newOrder := models.NewOrder(input.ProductID, input.UserDID, models.OrderTypePending, "placeholder", input.Amount, input.UserAddress)
+	paymentAddress, err := dao.GetPaymentAddress(input.ProductID)
+	if err != nil {
+		return nil, err
+	}
+
+	newOrder := models.NewOrder(input.ProductID, input.UserDID, models.OrderTypePending, paymentAddress, input.Amount, input.UserAddress)
 
 	orderID, err := dao.CreateOrder(newOrder)
 	if err != nil {
@@ -46,7 +52,6 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 	}
 	redeemableTime, err := time.Parse("2006-01-02 15:04:05", redeemableDate)
 	if err != nil {
-		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return nil, err
 	}
 
@@ -76,18 +81,23 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, err
 	}
 
-	txHash := contract.RedeemOrder()
+	amount := (interestInfo.AccumulatedInterest - interestInfo.TotalInterestGained) + order.Amount
+	tx, err := contract.RedeemOrder(order.UserAddress, amount)
+	if err != nil {
+		return nil, err
+	}
+	txData, _ := tx.MarshalJSON()
+	logger.Infof("tx %s send,detail:%s", tx.Hash().Hex(), string(txData))
 
-	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeOrderClosure, txHash, 0, 0, userAddress, redeemableDate)
+	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeOrderClosure, tx.Hash().Hex(), 0, 0, userAddress, redeemableDate)
 
 	err = dao.RedeemOrder(txInfo, interestInfo.AccumulatedInterest)
 	if err != nil {
 		return nil, err
 	}
 
-	amount := (interestInfo.AccumulatedInterest - interestInfo.TotalInterestGained) + order.Amount
 	time := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
-	output := models.NewRedeemOrderOutput(productName, amount, time, userAddress, models.CurrencyTypeMBLX, txHash)
+	output := models.NewRedeemOrderOutput(productName, amount, time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
 
 	// record change in staking pool's total principal
 	newPrincipal := models.NewPrincipalUpdate()
@@ -124,14 +134,18 @@ func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, errval.ErrNotEnoughInterest
 	}
 
-	txHash := contract.RedeemInterest()
-
 	userAddress, err := dao.GetUserAddressByOrderID(orderID)
 	if err != nil {
 		return nil, err
 	}
 
-	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeInterestOnly, txHash, 0, 0, userAddress, time.Now().Format("2006-01-02 15:04:05.000"))
+	tx, err := contract.RedeemOrder(userAddress, currentInterest)
+	if err != nil {
+		return nil, err
+	}
+	txData, _ := tx.MarshalJSON()
+	logger.Infof("tx %s send,detail:%s"+tx.Hash().Hex(), string(txData))
+	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeInterestOnly, tx.Hash().Hex(), 0, 0, userAddress, time.Now().Format("2006-01-02 15:04:05.000"))
 
 	productName, err := dao.GetProductNameForOrder(orderID)
 	if err != nil {
@@ -139,7 +153,7 @@ func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
 	}
 
 	time := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
-	output := models.NewRedeemOrderOutput(productName, currentInterest, time, userAddress, models.CurrencyTypeMBLX, txHash)
+	output := models.NewRedeemOrderOutput(productName, currentInterest, time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
 
 	err = dao.RedeemOrder(txInfo, interestInfo.AccumulatedInterest)
 	if err != nil {

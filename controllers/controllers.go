@@ -1,21 +1,21 @@
 package controllers
 
 import (
-	"github.com/metabloxStaking/interest"
 	"time"
+
+	"github.com/metabloxStaking/interest"
 
 	"github.com/MetaBloxIO/metablox-foundation-services/did"
 	"github.com/gin-gonic/gin"
 	"github.com/metabloxStaking/contract"
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/errval"
-	"github.com/metabloxStaking/foundationdao"
 	logger "github.com/sirupsen/logrus"
 )
 
 const placeholderExchangeRate = 30.0
 
-func validateDID(userDID string) error {
+func ValidateDID(userDID string) error {
 	splitDID := did.SplitDIDString(userDID)
 	valid := did.IsDIDValid(splitDID)
 	if !valid {
@@ -32,7 +32,6 @@ func GetProductInfoByIDHandler(c *gin.Context) {
 	productID := c.Param("id")
 	product, err := dao.GetProductInfoByID(productID)
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -48,7 +47,6 @@ func GetProductInfoByIDHandler(c *gin.Context) {
 func GetAllProductInfoHandler(c *gin.Context) {
 	products, err := dao.GetAllProductInfo()
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -66,7 +64,6 @@ func GetAllProductInfoHandler(c *gin.Context) {
 func CreateOrderHandler(c *gin.Context) {
 	output, err := CreateOrder(c)
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -77,7 +74,6 @@ func CreateOrderHandler(c *gin.Context) {
 func SubmitBuyinHandler(c *gin.Context) {
 	output, err := SubmitBuyin(c)
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -88,7 +84,6 @@ func SubmitBuyinHandler(c *gin.Context) {
 func GetStakingRecordsHandler(c *gin.Context) {
 	records, err := GetStakingRecords(c)
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -100,7 +95,6 @@ func GetTransactionsByOrderIDHandler(c *gin.Context) {
 	orderID := c.Param("id")
 	transactions, err := dao.GetTransactionsByOrderID(orderID)
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -110,16 +104,9 @@ func GetTransactionsByOrderIDHandler(c *gin.Context) {
 
 func GetTransactionsByUserDIDHandler(c *gin.Context) {
 	userDID := c.Param("did")
-	err := validateDID(userDID)
-	if err != nil {
-		logger.Error(err)
-		ResponseErrorWithMsg(c, CodeError, err.Error())
-		return
-	}
 
 	transactions, err := dao.GetTransactionsByUserDID(userDID)
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -131,7 +118,6 @@ func GetOrderInterestHandler(c *gin.Context) {
 	orderID := c.Param("id")
 	transactions, err := dao.GetSortedOrderInterestListUntilDate(orderID, time.Now().Format("2006-01-02 15:04:05"))
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -142,7 +128,6 @@ func GetOrderInterestHandler(c *gin.Context) {
 func RedeemOrderHandler(c *gin.Context) {
 	output, err := RedeemOrder(c)
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -153,7 +138,6 @@ func RedeemOrderHandler(c *gin.Context) {
 func RedeemInterestHandler(c *gin.Context) {
 	output, err := RedeemInterest(c)
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -162,42 +146,18 @@ func RedeemInterestHandler(c *gin.Context) {
 }
 
 func GetMinerListHandler(c *gin.Context) {
-	did := c.Query("did")
-	err := validateDID(did)
+	minerList, err := GetMinerList(c)
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
 
-	latitude := c.Query("latitude")
-	longitude := c.Query("longitude")
-
-	if latitude == "" || longitude == "" {
-		minerList, err := GetMinerList()
-		if err != nil {
-			logger.Error(err)
-			ResponseErrorWithMsg(c, CodeError, err.Error())
-			return
-		}
-		ResponseSuccess(c, minerList)
-		return
-	}
-
-	closestMiner, err := GetClosestMiner(latitude, longitude)
-	if err != nil {
-		logger.Error(err)
-		ResponseErrorWithMsg(c, CodeError, err.Error())
-		return
-	}
-
-	ResponseSuccess(c, closestMiner)
+	ResponseSuccess(c, minerList)
 }
 
 func GetMinerByIDHandler(c *gin.Context) {
 	miner, err := GetMinerByID(c)
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -207,9 +167,8 @@ func GetMinerByIDHandler(c *gin.Context) {
 
 func GetExchangeRateHandler(c *gin.Context) {
 	exchangeRateID := c.Param("id")
-	exchangeRate, err := foundationdao.GetExchangeRate(exchangeRateID)
+	exchangeRate, err := dao.GetExchangeRate(exchangeRateID)
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -220,7 +179,6 @@ func GetExchangeRateHandler(c *gin.Context) {
 func GetRewardHistoryHandler(c *gin.Context) {
 	redeemedToken, err := GetRewardHistory(c)
 	if err != nil {
-		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
@@ -230,6 +188,38 @@ func GetRewardHistoryHandler(c *gin.Context) {
 
 func ExchangeSeedHandler(c *gin.Context) {
 	output, err := ExchangeSeed(c)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	ResponseSuccess(c, output)
+}
+
+func GetNonceHandler(c *gin.Context) {
+	output, err := GetNonce(c)
+	if err != nil {
+		logger.Error(err)
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	ResponseSuccess(c, output)
+}
+
+func ActivateExchangeHandler(c *gin.Context) {
+	err := ActivateExchange(c)
+	if err != nil {
+		logger.Error(err)
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	ResponseSuccess(c, "")
+}
+
+func NewSeedExchangeHandler(c *gin.Context) {
+	output, err := NewExchangeSeed(c)
 	if err != nil {
 		logger.Error(err)
 		ResponseErrorWithMsg(c, CodeError, err.Error())

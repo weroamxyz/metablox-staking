@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	logger "github.com/sirupsen/logrus"
 )
 
 type ResponseData struct {
@@ -21,6 +22,7 @@ func ResponseError(c *gin.Context, code ResCode) {
 }
 
 func ResponseErrorWithMsg(c *gin.Context, code ResCode, msg interface{}) {
+	logger.Error(msg)
 	c.JSON(http.StatusBadRequest, &ResponseData{
 		code,
 		msg,

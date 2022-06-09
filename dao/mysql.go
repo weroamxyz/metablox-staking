@@ -2,6 +2,7 @@ package dao
 
 import (
 	"fmt"
+
 	"github.com/go-playground/validator/v10"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -66,6 +67,18 @@ func GetProductInfoByID(productID string) (*models.StakingProduct, error) {
 	}
 
 	return product, nil
+}
+
+func GetPaymentAddress(productID string) (string, error) {
+	var address string
+
+	sqlStr := "select PaymentAddress from StakingProducts where ID = ?"
+	err := SqlDB.Get(&address, sqlStr, productID)
+	if err != nil {
+		return "", err
+	}
+
+	return address, nil
 }
 
 func GetAllProductInfo() ([]*models.StakingProduct, error) {
@@ -415,29 +428,33 @@ func SubmitBuyin(tx *models.TXInfo) error {
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		if err == nil {
+			dbTX.Commit()
+		} else {
+			dbTX.Rollback()
+		}
+	}()
+
 	sqlStr := "update Orders set Type = 'Holding' where OrderID = ?"
 	result, err := dbTX.Exec(sqlStr, tx.OrderID)
 	if err != nil {
-		dbTX.Rollback()
 		return err
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		dbTX.Rollback()
 		return err
 	}
 	if rows == 0 {
-		dbTX.Rollback()
 		return errval.ErrUpdateOrderStatus
 	}
 
 	sqlStr = "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :RedeemableTime)"
 	_, err = dbTX.NamedExec(sqlStr, tx)
 	if err != nil {
-		dbTX.Rollback()
 		return err
 	}
-	dbTX.Commit()
 	return nil
 }
 
@@ -573,4 +590,33 @@ func UpdateOrderNewProductID(orderID string, newProductID string) error {
 	sqlStr := `update Orders set ProductID = ? where OrderID = ?`
 	_, err := SqlDB.Exec(sqlStr, newProductID, orderID)
 	return err
+}
+
+/* 	DID           string
+WalletAddress string
+Type          string*/
+
+func InsertMiningRole(role *models.MiningRole) error {
+	sqlStr := `insert into MiningRole (DID, WalletAddress, Type ) 
+				values (:DID, :WalletAddress, :Type)`
+	_, err := SqlDB.NamedExec(sqlStr, role)
+	return err
+}
+
+func GetMiningRole(DID string) (*models.MiningRole, error) {
+	sqlStr := `select * from MiningRole where DID = ?`
+	rows, err := SqlDB.Queryx(sqlStr, DID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var role models.MiningRole
+		err := rows.StructScan(&role)
+		if err != nil {
+			return nil, err
+		}
+		return &role, nil
+	}
+	return nil, nil
 }

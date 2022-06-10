@@ -219,7 +219,6 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 
 	// not using tt.Run because we don't want to set up the purchases multiple times
 	for _, tt := range tests {
-		logger.Infof("checking order %s at hour %d", tt.orderID, tt.hour)
 		currTime := productStart.Add(time.Hour * time.Duration(tt.hour))
 		if currTime.After(prevUpdate) {
 			updateAllOrderInterest(currTime) // update before each new order buyin/redeem
@@ -227,9 +226,12 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 		}
 		result, err := dao.GetSortedOrderInterestListUntilDate(tt.orderID, currTime.Format(TimeFormat))
 		assert.Nil(t, err)
-		assert.Equal(t, tt.expectedLen, len(result))
-		if !assert.InEpsilon(t, tt.expectedInterestGain, result[len(result)-1].InterestGain, floatErrorTolerance) {
-			logger.Infof("expected = %f, actual = %f", tt.expectedInterestGain, result[len(result)-1].InterestGain)
+		if assert.Equal(t, tt.expectedLen, len(result)) {
+			if !assert.InEpsilon(t, tt.expectedInterestGain, result[len(result)-1].InterestGain, floatErrorTolerance) {
+				logger.Warnf("test order %s at hour %d failed. Expected interest = %f, actual interest = %f", tt.orderID, tt.hour, tt.expectedInterestGain, result[len(result)-1].InterestGain)
+			}
+		} else {
+			logger.Warnf("test order %s at hour %d failed", tt.orderID, tt.hour)
 		}
 	}
 }

@@ -263,28 +263,32 @@ func RedeemOrder(txInfo *models.TXInfo, interestGained float64) error {
 		return err
 	}
 
+	defer func() {
+		if err == nil {
+			dbtx.Commit()
+		} else {
+			dbtx.Rollback()
+		}
+	}()
+
 	sqlStr := "update OrderInterest set TotalInterestGain = ? where OrderID = ? order by ID desc limit 1"
 	_, err = dbtx.Exec(sqlStr, interestGained, txInfo.OrderID)
 	if err != nil {
-		dbtx.Rollback()
 		return err
 	}
 
-	sqlStr = "update Orders set TotalInterestGained = AccumulatedInterest where OrderID = ?"
+	sqlStr = "update Orders set TotalInterestGained = AccumulatedInterest, Type = 'Complete' where OrderID = ?"
 	_, err = SqlDB.Query(sqlStr, txInfo.OrderID)
 	if err != nil {
-		dbtx.Rollback()
 		return err
 	}
 
 	sqlStr = "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :RedeemableTime)"
 	_, err = SqlDB.NamedExec(sqlStr, txInfo)
 	if err != nil {
-		dbtx.Rollback()
 		return err
 	}
 
-	dbtx.Commit()
 	return nil
 }
 

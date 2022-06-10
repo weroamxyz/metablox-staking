@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/go-playground/validator/v10"
-	"github.com/metabloxStaking/errval"
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -72,41 +71,6 @@ func executeSQLScript(path string) error {
 	return nil
 }
 
-func submitBuyinWithDate(tx *models.TXInfo) error {
-	err := validate.Struct(tx)
-	if err != nil {
-		return err
-	}
-	dbTX, err := SqlDB.Beginx()
-	if err != nil {
-		return err
-	}
-	sqlStr := "update Orders set Type = 'Holding' where OrderID = ?"
-	result, err := dbTX.Exec(sqlStr, tx.OrderID)
-	if err != nil {
-		dbTX.Rollback()
-		return err
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		dbTX.Rollback()
-		return err
-	}
-	if rows == 0 {
-		dbTX.Rollback()
-		return errval.ErrUpdateOrderStatus
-	}
-
-	sqlStr = "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, CreateDate, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :CreateDate, :RedeemableTime)"
-	_, err = dbTX.NamedExec(sqlStr, tx)
-	if err != nil {
-		dbTX.Rollback()
-		return err
-	}
-	dbTX.Commit()
-	return nil
-}
-
 func insertPrincipalUpdateWithTime(productID string, totalPrincipal float64, time string) error {
 	sqlStr := `insert into PrincipalUpdates (ProductID, Time, TotalPrincipal) values (?, ?, ?)`
 	_, err := SqlDB.Exec(sqlStr, productID, time, totalPrincipal)
@@ -118,6 +82,7 @@ func BuyinTestOrderWithDate(order *models.Order, date string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	orderID := strconv.Itoa(id)
 
 	// create corresponding txinfo
 	txInfo := &models.TXInfo{
@@ -127,7 +92,12 @@ func BuyinTestOrderWithDate(order *models.Order, date string) (string, error) {
 		CreateDate:     date,
 		RedeemableTime: date,
 	}
-	err = submitBuyinWithDate(txInfo)
+	err = SubmitBuyin(txInfo)
+	if err != nil {
+		return "", err
+	}
+
+	err = SetTXInfoDate(orderID, models.TxTypeBuyIn, date)
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +117,7 @@ func BuyinTestOrderWithDate(order *models.Order, date string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strconv.Itoa(id), nil
+	return orderID, nil
 }
 
 func RedeemTestOrderWithDate(orderID string, date string) error {
@@ -170,16 +140,15 @@ func RedeemTestOrderWithDate(orderID string, date string) error {
 		RedeemableTime: date,
 	}
 
-	err = redeemOrderWithDate(txInfo, interestInfo.AccumulatedInterest)
+	err = RedeemOrder(txInfo, interestInfo.AccumulatedInterest)
 	if err != nil {
 		return err
 	}
-	/*
-		err = uploadTransactionWithDate(txInfo)
-		if err != nil {
-			return err
-		}
-	*/
+
+	err = SetTXInfoDate(orderID, models.TxTypeOrderClosure, date)
+	if err != nil {
+		return err
+	}
 
 	// record change in staking pool's total principal
 	newPrincipal := models.NewPrincipalUpdate()
@@ -189,40 +158,15 @@ func RedeemTestOrderWithDate(orderID string, date string) error {
 	}
 	newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal - order.Amount
 
-	err = InsertPrincipalUpdate(order.ProductID, newPrincipal.TotalPrincipal)
+	err = insertPrincipalUpdateWithTime(order.ProductID, newPrincipal.TotalPrincipal, date)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func redeemOrderWithDate(txInfo *models.TXInfo, interestGained float64) error {
-	dbtx, err := SqlDB.Beginx()
-	if err != nil {
-		return err
-	}
-
-	sqlStr := "update OrderInterest set TotalInterestGain = ? where OrderID = ? order by ID desc limit 1"
-	_, err = dbtx.Exec(sqlStr, interestGained, txInfo.OrderID)
-	if err != nil {
-		dbtx.Rollback()
-		return err
-	}
-
-	sqlStr = "update Orders set TotalInterestGained = AccumulatedInterest where OrderID = ?"
-	_, err = SqlDB.Query(sqlStr, txInfo.OrderID)
-	if err != nil {
-		dbtx.Rollback()
-		return err
-	}
-
-	sqlStr = "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, CreateDate, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :CreateDate, :RedeemableTime)"
-	_, err = SqlDB.NamedExec(sqlStr, txInfo)
-	if err != nil {
-		dbtx.Rollback()
-		return err
-	}
-
-	dbtx.Commit()
-	return nil
+func SetTXInfoDate(orderID string, txType string, date string) error {
+	sqlStr := `update TXInfo set CreateDate = ? where OrderID = ? and TXType = ?`
+	_, err := SqlDB.Exec(sqlStr, date, orderID, txType)
+	return err
 }

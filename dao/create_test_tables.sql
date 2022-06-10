@@ -86,9 +86,9 @@ DROP TABLE IF EXISTS `StakingProducts`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `StakingProducts` (
                                    `ID` int NOT NULL AUTO_INCREMENT,
-                                   `ProductName` varchar(45) NOT NULL,
+                                   `ProductName` varchar(100) NOT NULL,
                                    `MinOrderValue` int NOT NULL,
-                                   `TopUpLimit` bigint NOT NULL,
+                                   `TopUpLimit` float NOT NULL,
                                    `MinRedeemValue` int NOT NULL,
                                    `LockUpPeriod` int NOT NULL,
                                    `DefaultAPY` float NOT NULL,
@@ -96,8 +96,11 @@ CREATE TABLE `StakingProducts` (
                                    `StartDate` timestamp(3) NOT NULL,
                                    `Term` int NOT NULL,
                                    `BurnedInterest` float NOT NULL DEFAULT '0',
-                                   `NextProductID` int NULL,
+                                   `NextProductID` int DEFAULT NULL,
                                    `Status` tinyint NOT NULL DEFAULT '1',
+                                   `PaymentAddress` varchar(80) NOT NULL,
+                                   `CurrencyType` varchar(10) NOT NULL,
+                                   `Network` varchar(100) NOT NULL,
                                    PRIMARY KEY (`ID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -113,11 +116,11 @@ CREATE TABLE `TXInfo` (
                           `PaymentNo` int NOT NULL AUTO_INCREMENT,
                           `OrderID` int NOT NULL,
                           `TXCurrencyType` varchar(10) NOT NULL,
-                          `TXType` enum('BuyIn','Redeem','OrderClosure') NOT NULL,
-                          `TXHash` varchar(66) DEFAULT NULL,
+                          `TXType` enum('BuyIn','OrderClosure','InterestOnly') NOT NULL,
+                          `TXHash` varchar(66) NOT NULL,
                           `Principal` float NOT NULL,
                           `Interest` float NOT NULL,
-                          `UserAddress` varchar(45) NOT NULL,
+                          `UserAddress` varchar(80) NOT NULL,
                           `CreateDate` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
                           `RedeemableTime` timestamp(3) NOT NULL,
                           PRIMARY KEY (`PaymentNo`)

@@ -11,10 +11,6 @@ import (
 
 const TimeFormat = "2006-01-02 15:04:05"
 
-func CalculateInterest() float64 { //placeholder
-	return 12.34
-}
-
 func calculatePeriodInterest(product *models.StakingProduct) float64 {
 	MB := product.TopUpLimit
 	R := product.DefaultAPY
@@ -42,22 +38,23 @@ func UpdateOrderInterest(orderID string, product *models.StakingProduct, princip
 		return err
 	}
 
-	interestList, err := dao.GetSortedOrderInterestListUntilDate(orderID, targetTime.Format(TimeFormat))
-	if err != nil {
-		return err
-	}
-
 	// latestTime will be set to either the latest orderInterest + 1 hour, or order date + 1 hour if there is no orderInterest yet
 	var latestTime time.Time
-	if len(interestList) == 0 {
+	var latestSum float64
+
+	latestInterest, err := dao.GetMostRecentOrderInterestUntilDate(orderID, targetTime.Format(TimeFormat))
+	if err == nil {
+		latestTime, _ = time.Parse(TimeFormat, latestInterest.Time)
+		latestSum = latestInterest.TotalInterestGain
+	} else if err == sql.ErrNoRows {
 		orderCreateDateStr, err := dao.GetOrderCreateDate(orderID)
 		if err != nil {
 			return err
 		}
 		latestTime, _ = time.Parse(TimeFormat, orderCreateDateStr)
+		latestSum = 0.0
 	} else {
-		latestOrderInterest := interestList[len(interestList)-1]
-		latestTime, _ = time.Parse(TimeFormat, latestOrderInterest.Time)
+		return err
 	}
 	latestTime = TruncateToHour(latestTime.UTC())
 	latestTime = latestTime.Add(time.Hour)
@@ -95,13 +92,9 @@ func UpdateOrderInterest(orderID string, product *models.StakingProduct, princip
 	}
 
 	if len(interestToAdd) > 0 {
-		sum := 0.0
-		for _, interest := range interestList {
-			sum += interest.InterestGain
-		}
 		for _, interest := range interestToAdd {
-			sum += interest.InterestGain
-			interest.TotalInterestGain = sum
+			latestSum += interest.InterestGain
+			interest.TotalInterestGain = latestSum
 		}
 
 		err = dao.InsertOrderInterestList(interestToAdd)
@@ -109,11 +102,10 @@ func UpdateOrderInterest(orderID string, product *models.StakingProduct, princip
 			return err
 		}
 
-		err = dao.UpdateOrderAccumulatedInterest(orderID, sum)
+		err = dao.UpdateOrderAccumulatedInterest(orderID, latestSum)
 		if err != nil {
 			return err
 		}
-		interestList = append(interestList, interestToAdd...)
 	}
 	return nil
 }

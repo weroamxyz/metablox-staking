@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/errval"
-	"github.com/metabloxStaking/interest"
 	"github.com/metabloxStaking/models"
 )
 
@@ -47,10 +46,6 @@ func GetStakingRecords(c *gin.Context) ([]*models.StakingRecord, error) {
 
 		timeElapsed := time.Since(redeemDate)
 		record.IsInClosureWindow = (0 < timeElapsed.Hours() && timeElapsed.Hours() < 24)
-
-		if record.OrderStatus == models.OrderTypeHolding {
-			interest.CalculateInterest() //query Colin's code to update interest value in db
-		}
 
 		interestInfo, err := dao.ExecuteGetInterestStmt(record.OrderID, stmt)
 		if err != nil {

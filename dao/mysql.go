@@ -278,13 +278,13 @@ func RedeemOrder(txInfo *models.TXInfo, interestGained float64) error {
 	}
 
 	sqlStr = "update Orders set TotalInterestGained = AccumulatedInterest, Type = 'Complete' where OrderID = ?"
-	_, err = SqlDB.Query(sqlStr, txInfo.OrderID)
+	_, err = dbtx.Exec(sqlStr, txInfo.OrderID)
 	if err != nil {
 		return err
 	}
 
 	sqlStr = "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :RedeemableTime)"
-	_, err = SqlDB.NamedExec(sqlStr, txInfo)
+	_, err = dbtx.NamedExec(sqlStr, txInfo)
 	if err != nil {
 		return err
 	}
@@ -564,29 +564,20 @@ func GetSortedOrderInterestListUntilDate(orderID string, until string) ([]*model
 	return interestList, nil
 }
 
+func GetMostRecentOrderInterestUntilDate(orderID string, until string) (*models.OrderInterest, error) {
+	interest := models.CreateOrderInterest()
+	sqlStr := `select * from OrderInterest where OrderID = ? and Time <= ? order by Time desc`
+	err := SqlDB.Get(interest, sqlStr, orderID, until)
+	if err != nil {
+		return nil, err
+	}
+	return interest, nil
+}
+
 func UpdateOrderAccumulatedInterest(orderID string, accumulatedInterest float64) error {
 	sqlStr := "update Orders set AccumulatedInterest = ? where OrderID = ?"
 	_, err := SqlDB.Exec(sqlStr, accumulatedInterest, orderID)
 	return err
-}
-
-func GetActiveOrdersProductIDs() ([]string, error) {
-	var ids []string
-	sqlStr := `select distinct ProductID from Orders where Type = 'Holding'`
-	rows, err := SqlDB.Queryx(sqlStr)
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		id := new(string)
-		err := rows.Scan(id)
-		if err != nil {
-			logger.Warn(err)
-			continue
-		}
-		ids = append(ids, *id)
-	}
-	return ids, nil
 }
 
 func UpdateOrderNewProductID(orderID string, newProductID string) error {

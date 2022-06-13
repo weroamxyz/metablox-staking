@@ -14,6 +14,7 @@ import (
 
 	"github.com/MetaBloxIO/metablox-foundation-services/did"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/metabloxStaking/comm/regutil"
 	"github.com/metabloxStaking/dao"
 
 	serviceModels "github.com/MetaBloxIO/metablox-foundation-services/models"
@@ -157,17 +158,23 @@ func NewExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 		return nil, errval.ErrSignatureVerifyError
 	}
 
-	sendSeedToken(input.Confirm.Target)
-	output, err := sendSeedToken(input.Confirm.Did)
+	valid := regutil.IsETHAddress(input.Result.WalletAddress)
+	if !valid {
+		return nil, errval.ErrETHAddress
+	}
+
+	valid = regutil.IsETHAddress(input.Confirm.WalletAddress)
+	if !valid {
+		return nil, errval.ErrETHAddress
+	}
+
+	sendSeedToken(input.Confirm.Target, input.Result.WalletAddress)
+	output, err := sendSeedToken(input.Confirm.Did, input.Confirm.WalletAddress)
 	return output, err
 }
 
-func sendSeedToken(DID string) (*models.SeedExchangeOutput, error) {
-	role, err := dao.GetMiningRole(DID)
-	if err != nil {
-		return nil, err
-	}
-	targetAddress := common.HexToAddress(role.WalletAddress)
+func sendSeedToken(DID, addressString string) (*models.SeedExchangeOutput, error) {
+	targetAddress := common.HexToAddress(addressString)
 	//todo: may have to change calculation method
 	txHash, err := contract.TransferTokens(targetAddress, int(placeholderExchangeRate)) //todo: need a proper method of converting exchangeValue into an int
 	if err != nil {
@@ -239,6 +246,7 @@ func serializeNetworkReq(req *models.NetworkConfirmRequest) ([]byte, error) {
 	buffer.WriteString(req.Quality)
 	buffer.WriteString(req.PubKey)
 	buffer.WriteString(req.Challenge)
+	buffer.WriteString(req.WalletAddress)
 
 	return buffer.Bytes(), nil
 }
@@ -292,6 +300,7 @@ func serializeNetworkResult(result *models.NetworkConfirmResult) ([]byte, error)
 	buffer.WriteString(result.LastBlockHash)
 	buffer.WriteString(result.PubKey)
 	buffer.WriteString(result.Challenge)
+	buffer.WriteString(result.WalletAddress)
 
 	return buffer.Bytes(), nil
 }

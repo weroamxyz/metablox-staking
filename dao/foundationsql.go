@@ -74,7 +74,7 @@ func GetSeedHistory(did string) ([]*models.SeedExchange, error) {
 }
 
 func UploadSeedExchange(exchange *models.SeedExchange) error {
-	sqlStr := "insert into SeedExchangeHistory (VcID, UserDID, ExchangeRate, Amount) values (:VcID, :UserDID, :ExchangeRate, :Amount)"
+	sqlStr := "insert into SeedExchangeHistory (UserDID, TargetDID, Challenge, ExchangeRate, Amount) values (:UserDID, :TargetDID, :Challenge, :ExchangeRate, :Amount)"
 	_, err := SqlDB.NamedExec(sqlStr, exchange)
 	return err
 }

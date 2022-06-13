@@ -9,18 +9,17 @@ import (
 	"math/big"
 	"math/rand"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/MetaBloxIO/metablox-foundation-services/did"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/metabloxStaking/contract/tokenutil"
 	"github.com/metabloxStaking/dao"
 
 	serviceModels "github.com/MetaBloxIO/metablox-foundation-services/models"
 	"github.com/MetaBloxIO/metablox-foundation-services/presentations"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
-	"github.com/metabloxStaking/contract"
 	"github.com/metabloxStaking/errval"
 	"github.com/metabloxStaking/models"
 )
@@ -145,7 +144,6 @@ func NewExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 	if !exists || err != nil {
 		return nil, errval.ErrInvalidValidator
 	}
-	serviceModels.GenerateTestDIDDocument()
 
 	ret, err := verifyNetworkReq(&input.Confirm)
 	if err != nil || !ret {
@@ -157,31 +155,30 @@ func NewExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 		return nil, errval.ErrSignatureVerifyError
 	}
 
-	sendSeedToken(input.Confirm.Target)
-	output, err := sendSeedToken(input.Confirm.Did)
+	sendSeedToken(input.Result.Did, input.Result.Target, input.Result.Challenge)
+	output, err := sendSeedToken(input.Confirm.Did, input.Confirm.Target, input.Confirm.Challenge)
 	return output, err
 }
 
-func sendSeedToken(DID string) (*models.SeedExchangeOutput, error) {
+func sendSeedToken(DID, targetDID, challenge string) (*models.SeedExchangeOutput, error) {
 	role, err := dao.GetMiningRole(DID)
 	if err != nil {
 		return nil, err
 	}
 	targetAddress := common.HexToAddress(role.WalletAddress)
 	//todo: may have to change calculation method
-	txHash, err := contract.TransferTokens(targetAddress, int(placeholderExchangeRate)) //todo: need a proper method of converting exchangeValue into an int
+	tx, err := tokenutil.Transfer(targetAddress, big.NewInt(placeholderExchangeRate))
 	if err != nil {
 		return nil, err
 	}
 
-	exchange := models.NewSeedExchange("", DID, placeholderExchangeRate, placeholderExchangeRate)
+	txHash := tx.Hash().Hex()
+	exchange := models.NewSeedExchange(DID, targetDID, challenge, placeholderExchangeRate, placeholderExchangeRate)
 
-	//todo: uncomment when we have a valid value for the seed VcID. This function will fail if the VcID is an empty string
-	/*err = dao.UploadSeedExchange(exchange)
+	err = dao.UploadSeedExchange(exchange)
 	if err != nil {
-		fmt.Println("check2")
 		return nil, err
-	}*/
+	}
 
 	txTime := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
 	output := models.NewSeedExchangeOutput(exchange.Amount, txHash, txTime, exchange.ExchangeRate)
@@ -297,7 +294,7 @@ func serializeNetworkResult(result *models.NetworkConfirmResult) ([]byte, error)
 }
 
 func ExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
-	input := models.CreateSeedExchangeInput()
+	/*input := models.CreateSeedExchangeInput()
 	err := c.BindJSON(input)
 	if err != nil {
 		return nil, err
@@ -341,6 +338,6 @@ func ExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 
 	txTime := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
 	output := models.NewSeedExchangeOutput(exchange.Amount, txHash, txTime, exchange.ExchangeRate)
-
-	return output, nil
+	*/
+	return nil, nil
 }

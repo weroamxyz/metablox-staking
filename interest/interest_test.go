@@ -1,6 +1,8 @@
 package interest
 
 import (
+	"math/big"
+
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 	"github.com/stretchr/testify/assert"
@@ -57,7 +59,7 @@ func TestCalculateCurrentAPY(t *testing.T) {
 				LockUpPeriod: tt.lockUpPeriod,
 				DefaultAPY:   tt.defaultAPY,
 			}
-			assert.Equal(t, tt.expected, FormatFloat(CalculateCurrentAPY(product, tt.totalPrincipal)))
+			assert.Equal(t, tt.expected, FormatFloat(CalculateCurrentAPY(product, big.NewInt(int64(tt.totalPrincipal)))))
 		})
 	}
 }
@@ -68,15 +70,15 @@ func TestGetOrderInterestList(t *testing.T) {
 	defer dao.CleanupTestDB()
 
 	order := &models.Order{
-		ProductID: "1",
-		UserDID:   "test",
-		Type:      "Pending",
-		Amount:    400,
+		ProductID:    "1",
+		UserDID:      "test",
+		Type:         "Pending",
+		StringAmount: "400",
 	}
 	id, err := dao.CreateOrder(order)
 	assert.Nil(t, err)
 
-	err = dao.InsertPrincipalUpdate(order.ProductID, order.Amount)
+	err = dao.InsertPrincipalUpdate(order.ProductID, order.Amount.String())
 	assert.Nil(t, err)
 
 	txInfo := &models.TXInfo{
@@ -85,7 +87,7 @@ func TestGetOrderInterestList(t *testing.T) {
 		TXType:         "BuyIn",
 		TXHash:         nil,
 		Principal:      order.Amount,
-		Interest:       0,
+		Interest:       big.NewInt(0),
 		UserAddress:    "",
 		RedeemableTime: "2022-01-01 00:00:00",
 	}
@@ -96,5 +98,5 @@ func TestGetOrderInterestList(t *testing.T) {
 	result, err := GetOrderInterestList(strconv.Itoa(id), until)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
-	assert.Equal(t, "11.574074", FormatFloat(result[0].InterestGain))
+	assert.Equal(t, "11.574074", result[0].InterestGain.String())
 }

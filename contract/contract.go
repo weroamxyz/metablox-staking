@@ -3,10 +3,11 @@ package contract
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/metabloxStaking/comm/regutil"
-	"github.com/metabloxStaking/contract/tokenutil"
 	"math/big"
 	"strings"
+
+	"github.com/metabloxStaking/comm/regutil"
+	"github.com/metabloxStaking/contract/tokenutil"
 
 	"github.com/MetaBloxIO/metablox-foundation-services/registry"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -143,7 +144,7 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 	amount := events[0].(*big.Int)
 	conversionRate := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil) //db stores values in MBLX, need to convert to minimum units
 	fltConversionRate := new(big.Float).SetInt(conversionRate)
-	dbAmount := fltConversionRate.Mul(fltConversionRate, big.NewFloat(1.3))
+	dbAmount := fltConversionRate.Mul(fltConversionRate, new(big.Float).SetInt(order.Amount))
 	intDBAmount, accuracy := dbAmount.Int(nil)
 
 	if intDBAmount.Sub(intDBAmount, amount).Int64()*int64(accuracy) > 1000 { //need some margin of error to account for inaccuracy when converting between big.Float and big.Int
@@ -153,12 +154,11 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 	return nil
 }
 
-func RedeemOrder(addressStr string, amountF float64) (*types.Transaction, error) {
+func RedeemOrder(addressStr string, amount *big.Int) (*types.Transaction, error) {
 	// verify eth address
 	if !regutil.IsETHAddress(addressStr) {
 		return nil, errval.ErrETHAddress
 	}
 	address := common.HexToAddress(addressStr)
-	amount := new(big.Int).SetUint64(uint64(amountF))
 	return tokenutil.Transfer(address, amount)
 }

@@ -3,13 +3,15 @@ package interest
 import (
 	"errors"
 	"fmt"
-	"github.com/metabloxStaking/dao"
-	"github.com/metabloxStaking/models"
-	logger "github.com/sirupsen/logrus"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/metabloxStaking/dao"
+	"github.com/metabloxStaking/models"
+	logger "github.com/sirupsen/logrus"
 )
 
 const timeFormat = "2006-01-02 15:04:05"
@@ -32,10 +34,10 @@ func calculateMaxAPY(product *models.StakingProduct) float64 {
 	return (A / Z) * (360.0 / N)
 }
 
-func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal float64) float64 {
+func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal *big.Int) float64 {
 	A := calculatePeriodInterest(product)
 	N := float64(product.LockUpPeriod)
-	return (A / totalPrincipal) * (360.0 / N)
+	return (A / float64(totalPrincipal.Int64())) * (360.0 / N)
 }
 
 func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInterest, error) {
@@ -94,25 +96,27 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 		totalPrincipal := 0.0
 		principalIndex = findMostRecentPrincipalUpdate(principalUpdates, latestTime)
 		if principalIndex >= 0 {
-			totalPrincipal = principalUpdates[principalIndex].TotalPrincipal
+			totalPrincipal = float64(principalUpdates[principalIndex].TotalPrincipal.Int64())
 		}
 		interest, err := calculateOrderInterest(order, product, latestTime, totalPrincipal)
 		if err != nil {
 			return nil, err
 		}
 
+		interest.StringInterestGain = interest.InterestGain.String()
 		interestToAdd = append(interestToAdd, interest)
 		latestTime = latestTime.Add(time.Hour)
 	}
 
 	if len(interestToAdd) > 0 {
-		sum := 0.0
+		sum := big.NewInt(0)
 		for _, interest := range interestList {
-			sum += interest.InterestGain
+			sum.Add(sum, interest.InterestGain)
 		}
 		for _, interest := range interestToAdd {
-			sum += interest.InterestGain
+			sum.Add(sum, interest.InterestGain)
 			interest.TotalInterestGain = sum
+			interest.StringTotalInterestGain = sum.String()
 		}
 
 		err = dao.InsertOrderInterestList(interestToAdd)
@@ -120,7 +124,7 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 			return nil, err
 		}
 
-		err = dao.UpdateOrderAccumulatedInterest(orderID, sum)
+		err = dao.UpdateOrderAccumulatedInterest(orderID, sum.String())
 		if err != nil {
 			return nil, err
 		}
@@ -137,11 +141,11 @@ func calculateOrderInterest(order *models.Order, product *models.StakingProduct,
 
 	interest := models.CreateOrderInterest()
 	interest.OrderID = order.OrderID
-	interest.APY = CalculateCurrentAPY(product, totalPrincipal)
+	interest.APY = CalculateCurrentAPY(product, big.NewInt(int64(totalPrincipal)))
 	interest.Time = when.Format(timeFormat)
 
 	N := float64(product.LockUpPeriod)
-	interest.InterestGain = (interest.APY / (360.0 / N)) * principal * (1 / (N * 24))
+	interest.InterestGain = big.NewInt(int64((interest.APY / (360.0 / N)) * float64(principal.Int64()) * (1 / (N * 24))))
 	return interest, nil
 }
 

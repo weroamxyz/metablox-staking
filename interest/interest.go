@@ -2,6 +2,7 @@ package interest
 
 import (
 	"database/sql"
+	"github.com/jmoiron/sqlx"
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
@@ -31,9 +32,11 @@ func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal float64)
 	return (A / totalPrincipal) * (360.0 / N)
 }
 
-func UpdateOrderInterest(orderID string, product *models.StakingProduct, principalUpdates []*models.PrincipalUpdate, until time.Time) error {
+func updateOrderInterest(orderID string, product *models.StakingProduct, principalUpdates []*models.PrincipalUpdate,
+	until time.Time, getPrincipalStmt *sqlx.Stmt, getRecentInterestStmt *sqlx.Stmt) error {
+
 	targetTime := TruncateToHour(until.UTC())
-	orderPrincipal, err := dao.GetOrderBuyInPrincipal(orderID)
+	orderPrincipal, err := dao.ExecuteGetOrderBuyInPrincipal(getPrincipalStmt, orderID)
 	if err != nil {
 		return err
 	}
@@ -42,7 +45,7 @@ func UpdateOrderInterest(orderID string, product *models.StakingProduct, princip
 	var latestTime time.Time
 	var latestSum float64
 
-	latestInterest, err := dao.GetMostRecentOrderInterestUntilDate(orderID, targetTime.Format(TimeFormat))
+	latestInterest, err := dao.ExecuteGetMostRecentOrderInterestUntilDate(getRecentInterestStmt, orderID, targetTime.Format(TimeFormat))
 	if err == nil {
 		latestTime, _ = time.Parse(TimeFormat, latestInterest.Time)
 		latestSum = latestInterest.TotalInterestGain
@@ -141,7 +144,7 @@ func StartHourlyTimer() {
 	go func() {
 		for {
 			currentTime := TruncateToHour(time.Now().UTC())
-			updateAllOrderInterest(currentTime)
+			UpdateAllOrderInterest(currentTime)
 
 			nextHour := currentTime.Add(time.Hour)
 			timer := time.NewTimer(nextHour.Sub(time.Now()))
@@ -151,12 +154,23 @@ func StartHourlyTimer() {
 	return
 }
 
-func updateAllOrderInterest(currentTime time.Time) {
+func UpdateAllOrderInterest(currentTime time.Time) {
 	products, err := dao.GetAllProductInfo()
 	if err != nil {
 		logger.Warn(err)
 		return
 	}
+	getRecentInterestStmt, err := dao.PrepareGetMostRecentOrderInterestUntilDate()
+	if err != nil {
+		logger.Warn(err)
+		return
+	}
+	getPrincipalStmt, err := dao.PrepareGetOrderBuyInPrincipal()
+	if err != nil {
+		logger.Warn(err)
+		return
+	}
+
 	for _, product := range products {
 		// 1. carry over the expired products' total principal (individual products will update their ids as they calculate)
 		if product.Status && isProductExpired(product, currentTime) {
@@ -194,7 +208,7 @@ func updateAllOrderInterest(currentTime time.Time) {
 			return
 		}
 		for _, id := range orderIDs {
-			err = UpdateOrderInterest(id, product, principalUpdates, currentTime)
+			err = updateOrderInterest(id, product, principalUpdates, currentTime, getPrincipalStmt, getRecentInterestStmt)
 			if err != nil {
 				logger.Warn(err)
 			}

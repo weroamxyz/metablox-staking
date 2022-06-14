@@ -103,9 +103,14 @@ func TestUpdateOrderInterest(t *testing.T) {
 	err = dao.SubmitBuyin(txInfo)
 	assert.Nil(t, err)
 
+	stmt1, err := dao.PrepareGetOrderBuyInPrincipal()
+	assert.Nil(t, err)
+	stmt2, err := dao.PrepareGetMostRecentOrderInterestUntilDate()
+	assert.Nil(t, err)
+
 	until := now.Add(time.Hour)
 
-	err = UpdateOrderInterest(orderID, product, principalUpdates, until)
+	err = updateOrderInterest(orderID, product, principalUpdates, until, stmt1, stmt2)
 	assert.Nil(t, err)
 	result, err := dao.GetSortedOrderInterestListUntilDate(orderID, until.Format(TimeFormat))
 	assert.Nil(t, err)
@@ -114,7 +119,7 @@ func TestUpdateOrderInterest(t *testing.T) {
 
 	until = now.Add(time.Hour * 10)
 
-	err = UpdateOrderInterest(orderID, product, principalUpdates, until)
+	err = updateOrderInterest(orderID, product, principalUpdates, until, stmt1, stmt2)
 	assert.Nil(t, err)
 	result, err = dao.GetSortedOrderInterestListUntilDate(orderID, until.Format(TimeFormat))
 	assert.Nil(t, err)
@@ -152,7 +157,7 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 	for _, event := range events {
 		currTime := productStart.Add(time.Hour * time.Duration(event.hour))
 		if currTime.After(prevUpdate) {
-			updateAllOrderInterest(currTime) // update before each new order buyin/redeem
+			UpdateAllOrderInterest(currTime) // update before each new order buyin/redeem
 			prevUpdate = currTime
 		}
 		assert.Nil(t, err)
@@ -221,7 +226,7 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 	for _, tt := range tests {
 		currTime := productStart.Add(time.Hour * time.Duration(tt.hour))
 		if currTime.After(prevUpdate) {
-			updateAllOrderInterest(currTime) // update before each new order buyin/redeem
+			UpdateAllOrderInterest(currTime) // update before each new order buyin/redeem
 			prevUpdate = currTime
 		}
 		result, err := dao.GetSortedOrderInterestListUntilDate(tt.orderID, currTime.Format(TimeFormat))

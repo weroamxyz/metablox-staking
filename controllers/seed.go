@@ -123,6 +123,11 @@ func NewExchangeSeed(c *gin.Context) ([]*models.SeedExchangeOutput, error) {
 		return nil, err
 	}
 
+	valid := regutil.IsETHAddress(input.WalletAddress)
+	if !valid {
+		return nil, errval.ErrETHAddress
+	}
+
 	for _, seed := range input.Seeds {
 
 		if seed.Confirm.Did != seed.Result.Target ||
@@ -161,18 +166,21 @@ func NewExchangeSeed(c *gin.Context) ([]*models.SeedExchangeOutput, error) {
 			return nil, errval.ErrSignatureVerifyError
 		}
 
-		valid := regutil.IsETHAddress(seed.Result.WalletAddress)
+		role, err := dao.GetMiningRole(seed.Result.Did)
+		if err != nil {
+			return nil, err
+		}
+		if role == nil {
+			return nil, errval.ErrMinerRoleNotFound
+		}
+
+		valid = regutil.IsETHAddress(input.WalletAddress)
 		if !valid {
 			return nil, errval.ErrETHAddress
 		}
 
-		valid = regutil.IsETHAddress(seed.Confirm.WalletAddress)
-		if !valid {
-			return nil, errval.ErrETHAddress
-		}
-
-		sendSeedToken(seed.Confirm.Target, seed.Result.WalletAddress)
-		output, err := sendSeedToken(seed.Confirm.Did, seed.Confirm.WalletAddress)
+		sendSeedToken(seed.Confirm.Target, role.WalletAddress)
+		output, err := sendSeedToken(seed.Confirm.Did, input.WalletAddress)
 		if err != nil {
 			return nil, err
 		}
@@ -254,7 +262,6 @@ func serializeNetworkReq(req *models.NetworkConfirmRequest) ([]byte, error) {
 	buffer.WriteString(req.Quality)
 	buffer.WriteString(req.PubKey)
 	buffer.WriteString(req.Challenge)
-	buffer.WriteString(req.WalletAddress)
 
 	return buffer.Bytes(), nil
 }
@@ -308,7 +315,6 @@ func serializeNetworkResult(result *models.NetworkConfirmResult) ([]byte, error)
 	buffer.WriteString(result.LastBlockHash)
 	buffer.WriteString(result.PubKey)
 	buffer.WriteString(result.Challenge)
-	buffer.WriteString(result.WalletAddress)
 
 	return buffer.Bytes(), nil
 }

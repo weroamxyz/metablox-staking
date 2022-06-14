@@ -231,7 +231,6 @@ type NetworkConfirmRequest struct {
 	Quality       string `json:"quality"`
 	PubKey        string `json:"pubKey"`
 	Challenge     string `json:"challenge"`
-	WalletAddress string `json:"walletAddress"`
 	Signature     string `json:"signature"`
 }
 
@@ -241,12 +240,12 @@ type NetworkConfirmResult struct {
 	LastBlockHash string `json:"lastBlockHash"`
 	PubKey        string `json:"pubKey"`
 	Challenge     string `json:"challenge"`
-	WalletAddress string `json:"walletAddress"`
 	Signature     string `json:"signature"`
 }
 
 type NewSeedExchangeInput struct {
-	Seeds []Seed
+	WalletAddress string
+	Seeds         []Seed
 }
 
 type Seed struct {

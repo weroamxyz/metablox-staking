@@ -24,4 +24,5 @@ var (
 	ErrInvalidMiner           = errors.New("failed to find credential for miner")
 	ErrOrderAmountTooLow      = errors.New("order amount is too low")
 	ErrOrderExceedsTopUpLimit = errors.New("order amount exceeds product's pool limit")
+	ErrMinerRoleNotFound      = errors.New("miner has no assigned wallet address")
 )

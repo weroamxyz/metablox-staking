@@ -246,6 +246,10 @@ type NetworkConfirmResult struct {
 }
 
 type NewSeedExchangeInput struct {
+	Seeds []Seed
+}
+
+type Seed struct {
 	Confirm NetworkConfirmRequest
 	Result  NetworkConfirmResult
 }

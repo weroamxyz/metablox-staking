@@ -114,63 +114,71 @@ func ActivateExchange(c *gin.Context) error {
 	return err
 }
 
-func NewExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
+func NewExchangeSeed(c *gin.Context) ([]*models.SeedExchangeOutput, error) {
 	var input models.NewSeedExchangeInput
+	var outputArray []*models.SeedExchangeOutput
 	err := c.BindJSON(&input)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if input.Confirm.Did != input.Result.Target ||
-		input.Confirm.Target != input.Result.Did {
-		return nil, errval.ErrDIDMismatch
-	}
+	for _, seed := range input.Seeds {
 
-	err = ValidateDID(input.Confirm.Did)
-	if err != nil {
-		return nil, err
-	}
+		if seed.Confirm.Did != seed.Result.Target ||
+			seed.Confirm.Target != seed.Result.Did {
+			return nil, errval.ErrDIDMismatch
+		}
 
-	exists, err := dao.CheckIfDIDIsMiner(input.Confirm.Did)
-	if !exists || err != nil {
-		return nil, errval.ErrInvalidMiner
-	}
+		err = ValidateDID(seed.Confirm.Did)
+		if err != nil {
+			return nil, err
+		}
 
-	err = ValidateDID(input.Result.Did)
-	if err != nil {
-		return nil, err
-	}
+		exists, err := dao.CheckIfDIDIsMiner(seed.Confirm.Did)
+		if !exists || err != nil {
+			return nil, errval.ErrInvalidMiner
+		}
 
-	exists, err = dao.CheckIfDIDIsValidator(input.Result.Did)
-	if !exists || err != nil {
-		return nil, errval.ErrInvalidValidator
-	}
-	serviceModels.GenerateTestDIDDocument()
+		err = ValidateDID(seed.Result.Did)
+		if err != nil {
+			return nil, err
+		}
 
-	ret, err := verifyNetworkReq(&input.Confirm)
-	if err != nil || !ret {
-		return nil, errval.ErrSignatureVerifyError
-	}
+		exists, err = dao.CheckIfDIDIsValidator(seed.Result.Did)
+		if !exists || err != nil {
+			return nil, errval.ErrInvalidValidator
+		}
+		serviceModels.GenerateTestDIDDocument()
 
-	ret, err = verifyNetworkResult(&input.Result)
-	if err != nil || !ret {
-		return nil, errval.ErrSignatureVerifyError
-	}
+		ret, err := verifyNetworkReq(&seed.Confirm)
+		if err != nil || !ret {
+			return nil, errval.ErrSignatureVerifyError
+		}
 
-	valid := regutil.IsETHAddress(input.Result.WalletAddress)
-	if !valid {
-		return nil, errval.ErrETHAddress
-	}
+		ret, err = verifyNetworkResult(&seed.Result)
+		if err != nil || !ret {
+			return nil, errval.ErrSignatureVerifyError
+		}
 
-	valid = regutil.IsETHAddress(input.Confirm.WalletAddress)
-	if !valid {
-		return nil, errval.ErrETHAddress
-	}
+		valid := regutil.IsETHAddress(seed.Result.WalletAddress)
+		if !valid {
+			return nil, errval.ErrETHAddress
+		}
 
-	sendSeedToken(input.Confirm.Target, input.Result.WalletAddress)
-	output, err := sendSeedToken(input.Confirm.Did, input.Confirm.WalletAddress)
-	return output, err
+		valid = regutil.IsETHAddress(seed.Confirm.WalletAddress)
+		if !valid {
+			return nil, errval.ErrETHAddress
+		}
+
+		sendSeedToken(seed.Confirm.Target, seed.Result.WalletAddress)
+		output, err := sendSeedToken(seed.Confirm.Did, seed.Confirm.WalletAddress)
+		if err != nil {
+			return nil, err
+		}
+		outputArray = append(outputArray, output)
+	}
+	return outputArray, nil
 }
 
 func sendSeedToken(DID, addressString string) (*models.SeedExchangeOutput, error) {

@@ -1,23 +1,31 @@
 package controllers
 
 import (
+	"math/big"
+
 	"github.com/gin-gonic/gin"
 	"github.com/metabloxStaking/dao"
+	"github.com/metabloxStaking/errval"
 )
 
-func GetRewardHistory(c *gin.Context) (float64, error) {
+func GetRewardHistory(c *gin.Context) (string, error) {
 	userDID := c.Param("did")
 
 	exchangeList, err := dao.GetSeedHistory(userDID)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
-	redeemedToken := 0.0
+	redeemedToken := big.NewInt(0)
 
 	for _, exchange := range exchangeList {
-		redeemedToken += exchange.Amount
+		bigAmount, success := big.NewInt(0).SetString(exchange.Amount, 10)
+		if !success {
+			return "", errval.ErrAmountNotNumber
+		}
+		redeemedToken.Add(redeemedToken, bigAmount)
 	}
 
-	return redeemedToken, nil
+	convertedRedeemedAmount := big.NewFloat(0).Quo(big.NewFloat(0).SetInt(redeemedToken), big.NewFloat(1000000))
+	return convertedRedeemedAmount.String(), nil
 }

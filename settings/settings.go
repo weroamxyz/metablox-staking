@@ -20,7 +20,7 @@ func Init() (err error) {
 
 	network := viper.GetString("network")
 
-	if strings.EqualFold("testnet", network) {
+	if strings.EqualFold("devnet", network) {
 		viper.SetConfigFile(filePath + "/configDev.yaml")
 		err = viper.MergeInConfig()
 		if err != nil {

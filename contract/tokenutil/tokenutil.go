@@ -3,6 +3,8 @@ package tokenutil
 import (
 	"context"
 	"crypto/ecdsa"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -13,7 +15,6 @@ import (
 	"github.com/metabloxStaking/errval"
 	logger "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"math/big"
 )
 
 const DefaultGasLimit = 100000
@@ -138,6 +139,7 @@ func Transfer(to common.Address, amount *big.Int) (*types.Transaction, error) {
 	return token.Transfer(signer, to, amount)
 }
 
+//todo: figure out why ethclient's EthPendingBalance is always returning 0 and restore functionality here after fixing the issue
 func checkEthBalance(balance *big.Int, gasPrice *big.Int, gasLimit uint64) bool {
-	return balance.Cmp(new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(gasLimit))) > 0
+	return true //balance.Cmp(new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(gasLimit))) > 0
 }

@@ -33,13 +33,11 @@ func Init() error {
 	wssUrl = viper.GetString("metablox.wssUrl")
 	rpcUrl = viper.GetString("metablox.rpcUrl")
 	registryStr := viper.GetString("metablox.registryContract")
-	if client, err = ethclient.Dial(wssUrl); err != nil {
-		return err
-	}
-	registryContract = common.HexToAddress(registryStr)
+	client, err = ethclient.Dial(wssUrl)
 	if err != nil {
 		return err
 	}
+	registryContract = common.HexToAddress(registryStr)
 	registryInstance, err = registry.NewRegistry(registryContract, client)
 	if err != nil {
 		return err
@@ -93,7 +91,7 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 		return err
 	}
 
-	if msg.From() != common.HexToAddress(order.UserAddress) || *msg.To() != tokenutil.TokenAddress() {
+	if msg.From() != common.HexToAddress(order.UserAddress) || *msg.To() != tokenutil.MBLXTokenAddress() {
 		return errval.ErrAddressComparisonFail
 	}
 
@@ -121,9 +119,9 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 		return errval.ErrContractParam
 	}
 
-	to := params[0].Value
+	centerAddress := params[0].Value
 	value := params[1].Value
-	if !regutil.IsETHAddress(to) || common.HexToAddress(to) != tokenutil.WalletAddress() {
+	if !regutil.IsETHAddress(centerAddress) || common.HexToAddress(centerAddress) != tokenutil.CenterAddress() {
 		return errval.ErrWalletAddress
 	}
 

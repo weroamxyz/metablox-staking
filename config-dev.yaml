@@ -1,13 +1,13 @@
+
 mysql:
   host: "127.0.0.1"
   port: 3306
   user: "root"
   password: "omnisolutesting"
   dbname: "foundationService"
-
 metablox:
-  rpcUrl: "xx://api.s0.b.hmny.io"
+  rpcUrl: "https://api.s0.b.hmny.io"
   wssUrl: "wss://ws.s0.b.hmny.io"
-  tokenAddress: "0x7aEC610a4a3287B7b210bC04bDA781B2afd7538c"
-  walletPrivateKey: "9fd8f6049129527c63830aead266bcf7c53aa82109422da9335aac0c0a36a968"
-  registryContract: "0xf880b97Be7c402Cc441895bF397c3f865BfE1Cb2"
+  tokenAddress: "0x8d0c56C099f2816B6534eB1d74543846EC558357"
+  walletPrivateKey: "01F903CE0C960FF3A9E68E80FF5FFC344358D80CE1C221C3F9711AF07F83A3BD"
+  registryContract: "0x8a9DE3908DDD37b1F2D46D875214237C0505BF94"

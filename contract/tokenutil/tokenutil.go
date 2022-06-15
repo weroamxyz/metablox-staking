@@ -19,20 +19,20 @@ import (
 const DefaultGasLimit = 100000
 
 var (
-	client       *ethclient.Client
-	tokenAddress common.Address
-	wallet       *ecdsa.PrivateKey
-	fromAddress  common.Address
-	chainId      *big.Int
-	erc20Decoder = abiutil.NewABIDecoder(erc20.Erc20ABI)
+	client           *ethclient.Client
+	mblxTokenAddress common.Address
+	wallet           *ecdsa.PrivateKey
+	centerAddress    common.Address
+	chainId          *big.Int
+	erc20Decoder     *abiutil.ABIDecoder
 )
 
-func WalletAddress() common.Address {
-	return fromAddress
+func CenterAddress() common.Address {
+	return centerAddress
 }
 
-func TokenAddress() common.Address {
-	return tokenAddress
+func MBLXTokenAddress() common.Address {
+	return mblxTokenAddress
 }
 
 func DecodeData(data string) (abiutil.MethodData, error) {
@@ -58,17 +58,19 @@ func Init() {
 	}
 	logger.Debugf("current chainID is %s", chainId)
 
-	tokenAddress = common.HexToAddress(tokenStr)
+	mblxTokenAddress = common.HexToAddress(tokenStr)
 	wallet, _ = crypto.HexToECDSA(walletStr)
 
-	fromAddress = crypto.PubkeyToAddress(wallet.PublicKey)
+	centerAddress = crypto.PubkeyToAddress(wallet.PublicKey)
+
+	erc20Decoder = abiutil.NewABIDecoder(erc20.Erc20ABI)
 
 	logger.Debugln("tokenutil initialized completed")
 
 }
 
 func NewToken() (*erc20.Erc20, error) {
-	token, err := erc20.NewErc20(tokenAddress, client)
+	token, err := erc20.NewErc20(mblxTokenAddress, client)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +83,7 @@ func NewSigner(gasLimit uint64) (*bind.TransactOpts, error) {
 	if err != nil {
 		return nil, err
 	}
-	nonce, err := client.PendingNonceAt(ctx, fromAddress)
+	nonce, err := client.PendingNonceAt(ctx, centerAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +117,7 @@ func Transfer(to common.Address, amount *big.Int) (*types.Transaction, error) {
 		return nil, err
 	}
 	// 2. check token balance
-	balance, err := token.BalanceOf(&bind.CallOpts{}, fromAddress)
+	balance, err := token.BalanceOf(&bind.CallOpts{}, centerAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +130,7 @@ func Transfer(to common.Address, amount *big.Int) (*types.Transaction, error) {
 		return nil, err
 	}
 	// 4. check eth Balance
-	ethBalance, _ := EthPendingBalance(fromAddress)
+	ethBalance, _ := EthPendingBalance(centerAddress)
 	if !checkEthBalance(ethBalance, signer.GasPrice, signer.GasLimit) {
 		return nil, errval.ErrETHBalance
 	}

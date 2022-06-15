@@ -5,7 +5,6 @@ mysql:
   user: "tester"
   password: "omnisolutesting"
   dbname: "foundationService"
-
 metablox:
   rpcUrl: "https://api.s0.b.hmny.io"
   wssUrl: "wss://ws.s0.b.hmny.io"

@@ -13,17 +13,20 @@ func Init() (err error) {
 	filePath := fileName[:len(fileName)-20]
 	viper.SetConfigFile(filePath + "/config.yaml")
 	err = viper.ReadInConfig()
+	if err != nil {
+		return err
+	}
 
 	profile := viper.GetString("profile")
 
 	if profile != "" {
 		viper.SetConfigFile(filePath + "/config-" + profile + ".yaml")
-		viper.MergeInConfig()
+		err = viper.MergeInConfig()
+		if err != nil {
+			return err
+		}
 	}
 
-	if err != nil {
-		return err
-	}
 	viper.WatchConfig()
 	viper.OnConfigChange(func(in fsnotify.Event) {
 		logger.Info("config file has been changed")

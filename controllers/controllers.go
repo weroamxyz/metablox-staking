@@ -166,8 +166,7 @@ func GetMinerByIDHandler(c *gin.Context) {
 }
 
 func GetExchangeRateHandler(c *gin.Context) {
-	exchangeRateID := c.Param("id")
-	exchangeRate, err := dao.GetExchangeRate(exchangeRateID)
+	exchangeRate, err := GetExchangeRate(c)
 	if err != nil {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return

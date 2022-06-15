@@ -410,3 +410,14 @@ func ExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 	return output, nil*/
 	return nil, nil
 }
+
+func GetExchangeRate(c *gin.Context) (string, error) {
+	exchangeRateID := c.Param("id")
+	exchangeRate, err := dao.GetExchangeRate(exchangeRateID)
+	if err != nil {
+		return "", err
+	}
+
+	convertedExchangeRate := big.NewFloat(0).Quo(big.NewFloat(0).SetInt(exchangeRate), big.NewFloat(1000000))
+	return convertedExchangeRate.String(), nil
+}

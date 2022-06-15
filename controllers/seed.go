@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"github.com/metabloxStaking/contract/tokenutil"
 	"math/big"
 	"math/rand"
 	"strconv"
@@ -20,7 +21,6 @@ import (
 	"github.com/MetaBloxIO/metablox-foundation-services/presentations"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
-	"github.com/metabloxStaking/contract"
 	"github.com/metabloxStaking/errval"
 	"github.com/metabloxStaking/models"
 )
@@ -241,7 +241,8 @@ func sendSeedToken(DID, addressString string, exchangeRate *big.Int, seedsExchan
 	targetAddress := common.HexToAddress(addressString)
 	//todo: may have to change calculation method
 	txAmount := big.NewInt(0).Mul(exchangeRate, big.NewInt(int64(seedsExchanged)))
-	txHash, err := contract.TransferTokens(targetAddress, txAmount) //todo: need a proper method of converting exchangeValue into an int
+
+	tx, err := tokenutil.Transfer(targetAddress, txAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +250,7 @@ func sendSeedToken(DID, addressString string, exchangeRate *big.Int, seedsExchan
 	txTime := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
 	convertedTxAmount := big.NewFloat(0).Quo(big.NewFloat(0).SetInt(txAmount), big.NewFloat(1000000))
 	convertedExchange := big.NewFloat(0).Quo(big.NewFloat(0).SetInt(exchangeRate), big.NewFloat(1000000))
-	output := models.NewSeedExchangeOutput(convertedTxAmount.String(), txHash, txTime, convertedExchange.String())
+	output := models.NewSeedExchangeOutput(convertedTxAmount.String(), tx.Hash().Hex(), txTime, convertedExchange.String())
 
 	return output, nil
 }
@@ -361,52 +362,53 @@ func serializeNetworkResult(result *models.NetworkConfirmResult) ([]byte, error)
 	return buffer.Bytes(), nil
 }
 
-func ExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
-	/*input := models.CreateSeedExchangeInput()
-	err := c.BindJSON(input)
-	if err != nil {
-		return nil, err
-	}
-
-	err = ValidateDID(input.DID)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = presentations.VerifyVP(&input.SeedPresentation) //going to fail at the moment as we don't have all the info to do this verification
-	if err != nil {                                          //skip this error check to avoid failures until we can properly verify seed presentations
-		//return nil, error
-	}
-
-	targetAddress := common.HexToAddress(input.WalletAddress)
-
-	seedVC := input.SeedPresentation.VerifiableCredential[0]
-	splitID := strings.Split(seedVC.ID, "/")
-	if len(splitID) != 5 {
-		return nil, errval.ErrVCIDFormat
-	}
-	models.ConvertCredentialSubject(&seedVC)
-	seedInfo := seedVC.CredentialSubject.(models.SeedInfo)
-	exchangeValue := seedInfo.Amount * placeholderExchangeRate //todo: may have to change calculation method
-
-	txHash, err := contract.TransferTokens(targetAddress, int(exchangeValue)) //todo: need a proper method of converting exchangeValue into an int
-	if err != nil {
-		return nil, err
-	}
-
-	vcID := splitID[4] //should equal numerical ID
-	amount := exchangeValue
-
-	exchange := models.NewSeedExchange(vcID, seedInfo.ID, placeholderExchangeRate, amount)
-
-	err = dao.UploadSeedExchange(exchange)
-	if err != nil {
-		return nil, err
-	}
-
-	txTime := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
-	output := models.NewSeedExchangeOutput(exchange.Amount, txHash, txTime, exchange.ExchangeRate)
-
-	return output, nil*/
-	return nil, nil
-}
+//
+//// Deprecated: use NewExchangeSeed
+//func ExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
+//	input := models.CreateSeedExchangeInput()
+//	err := c.BindJSON(input)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	err = ValidateDID(input.DID)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	_, err = presentations.VerifyVP(&input.SeedPresentation) //going to fail at the moment as we don't have all the info to do this verification
+//	if err != nil {                                          //skip this error check to avoid failures until we can properly verify seed presentations
+//		//return nil, error
+//	}
+//
+//	targetAddress := common.HexToAddress(input.WalletAddress)
+//
+//	seedVC := input.SeedPresentation.VerifiableCredential[0]
+//	splitID := strings.Split(seedVC.ID, "/")
+//	if len(splitID) != 5 {
+//		return nil, errval.ErrVCIDFormat
+//	}
+//	models.ConvertCredentialSubject(&seedVC)
+//	seedInfo := seedVC.CredentialSubject.(models.SeedInfo)
+//	exchangeValue := seedInfo.Amount * placeholderExchangeRate //todo: may have to change calculation method
+//
+//	txHash, err := contract.TransferTokens(targetAddress, int(exchangeValue)) //todo: need a proper method of converting exchangeValue into an int
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	vcID := splitID[4] //should equal numerical ID
+//	amount := exchangeValue
+//
+//	exchange := models.NewSeedExchange(vcID, seedInfo.ID, placeholderExchangeRate, amount)
+//
+//	err = dao.UploadSeedExchange(exchange)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	txTime := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
+//	output := models.NewSeedExchangeOutput(exchange.Amount, txHash, txTime, exchange.ExchangeRate)
+//
+//	return output, nil
+//}

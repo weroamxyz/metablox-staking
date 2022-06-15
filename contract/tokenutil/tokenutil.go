@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/metabloxStaking/comm/abiutil"
 	"github.com/metabloxStaking/contract/erc20"
 	"github.com/metabloxStaking/errval"
 	logger "github.com/sirupsen/logrus"
@@ -23,7 +24,20 @@ var (
 	wallet       *ecdsa.PrivateKey
 	fromAddress  common.Address
 	chainId      *big.Int
+	erc20Decoder = abiutil.NewABIDecoder(erc20.Erc20ABI)
 )
+
+func WalletAddress() common.Address {
+	return fromAddress
+}
+
+func TokenAddress() common.Address {
+	return tokenAddress
+}
+
+func DecodeData(data string) (abiutil.MethodData, error) {
+	return erc20Decoder.DecodeMethod(data)
+}
 
 func Init() {
 	logger.Debugln("Initializing tokenutil...")

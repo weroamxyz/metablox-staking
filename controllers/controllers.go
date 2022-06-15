@@ -186,16 +186,6 @@ func GetRewardHistoryHandler(c *gin.Context) {
 	ResponseSuccess(c, redeemedToken)
 }
 
-func ExchangeSeedHandler(c *gin.Context) {
-	output, err := ExchangeSeed(c)
-	if err != nil {
-		ResponseErrorWithMsg(c, CodeError, err.Error())
-		return
-	}
-
-	ResponseSuccess(c, output)
-}
-
 func GetNonceHandler(c *gin.Context) {
 	output, err := GetNonce(c)
 	if err != nil {

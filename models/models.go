@@ -43,7 +43,7 @@ type StakingProduct struct {
 	Term           int     `db:"Term" json:"-"`
 	BurnedInterest float64 `db:"BurnedInterest" json:"-"`
 	NextProductID  *string `db:"NextProductID" json:"-"`
-	PaymentAddress string  `db:"PaymentAddress" json:"-"`
+	PaymentAddress string  `db:"PaymentAddress"`
 	CurrencyType   string  `db:"CurrencyType" json:"-"`
 	Network        string  `db:"Network" json:"-"`
 	Status         bool    `db:"Status" json:"status"`

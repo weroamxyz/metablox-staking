@@ -6,8 +6,7 @@ mysql:
   password: "omnisolutesting"
   dbname: "foundationService"
 metablox:
-  rpcUrl: "https://api.s0.b.hmny.io"
-  wssUrl: "wss://ws.s0.b.hmny.io"
+  rpcUrl: "https://api.s0.ps.hmny.io/"
   tokenAddress: "0x8d0c56C099f2816B6534eB1d74543846EC558357"
   walletPrivateKey: "01F903CE0C960FF3A9E68E80FF5FFC344358D80CE1C221C3F9711AF07F83A3BD"
   registryContract: "0x8a9DE3908DDD37b1F2D46D875214237C0505BF94"

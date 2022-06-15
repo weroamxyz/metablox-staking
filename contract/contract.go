@@ -22,7 +22,6 @@ import (
 
 var (
 	registryContract common.Address
-	wssUrl           string
 	rpcUrl           string
 	client           *ethclient.Client
 	registryInstance *registry.Registry
@@ -30,10 +29,9 @@ var (
 
 func Init() error {
 	var err error
-	wssUrl = viper.GetString("metablox.wssUrl")
 	rpcUrl = viper.GetString("metablox.rpcUrl")
 	registryStr := viper.GetString("metablox.registryContract")
-	client, err = ethclient.Dial(wssUrl)
+	client, err = ethclient.Dial(rpcUrl)
 	if err != nil {
 		return err
 	}

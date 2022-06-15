@@ -3,10 +3,11 @@ package contract
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/metabloxStaking/comm/regutil"
-	"github.com/metabloxStaking/contract/tokenutil"
 	"math/big"
 	"strings"
+
+	"github.com/metabloxStaking/comm/regutil"
+	"github.com/metabloxStaking/contract/tokenutil"
 
 	"github.com/MetaBloxIO/metablox-foundation-services/registry"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -86,20 +87,18 @@ func generateAuth(privateKey *ecdsa.PrivateKey) (*bind.TransactOpts, error) {
 	return auth, nil
 }
 
-func TransferTokens(toAddress common.Address, value int) (string, error) {
+func TransferTokens(toAddress common.Address, value *big.Int) (string, error) {
 	//balance, err := instance.TokenBalance(nil)
 	//if err != nil {
 	//	return err
 	//}
-
-	bigValue := big.NewInt(int64(value))
 
 	auth, err := generateAuth(ownerKey)
 	if err != nil {
 		return "", err
 	}
 
-	tx, err := stakingInstance.Transfer(auth, toAddress, bigValue)
+	tx, err := stakingInstance.Transfer(auth, toAddress, value)
 	if err != nil {
 		return "", nil
 	}

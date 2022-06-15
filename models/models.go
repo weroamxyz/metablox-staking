@@ -101,11 +101,12 @@ type MinerInfo struct {
 }
 
 type SeedExchange struct {
-	VcID         string  `db:"VcID"`
-	UserDID      string  `db:"UserDID"`
-	ExchangeRate float64 `db:"ExchangeRate"`
-	Amount       float64 `db:"Amount"`
-	CreateTime   string  `db:"CreateTime"`
+	UserDID      string `db:"UserDID"`
+	TargetDID    string `db:"TargetDID"`
+	Challenge    string `db:"Challenge"`
+	ExchangeRate string `db:"ExchangeRate"`
+	Amount       string `db:"Amount"`
+	CreateTime   string `db:"CreateTime"`
 }
 
 type StakingRecord struct {
@@ -192,10 +193,10 @@ type SeedExchangeInput struct {
 }
 
 type SeedExchangeOutput struct {
-	Amount       float64
+	Amount       string
 	TxHash       string
 	TxTime       string
-	ExchangeRate float64
+	ExchangeRate string
 }
 
 type VpNonceInput struct {
@@ -244,8 +245,19 @@ type NetworkConfirmResult struct {
 }
 
 type NewSeedExchangeInput struct {
+	WalletAddress string
+	Seeds         []Seed
+}
+
+type Seed struct {
 	Confirm NetworkConfirmRequest
 	Result  NetworkConfirmResult
+}
+
+type SeedHistoryKeys struct {
+	DID       string
+	Target    string
+	Challenge string
 }
 
 func CreateOrder() *Order {
@@ -311,10 +323,11 @@ func CreateSeedExchange() *SeedExchange {
 	return &SeedExchange{}
 }
 
-func NewSeedExchange(vcID, userDID string, exchangeRate, amount float64) *SeedExchange {
+func NewSeedExchange(userDID, targetDID, challenge, exchangeRate, amount string) *SeedExchange {
 	return &SeedExchange{
-		vcID,
 		userDID,
+		targetDID,
+		challenge,
 		exchangeRate,
 		amount,
 		"",
@@ -401,12 +414,20 @@ func CreateSeedExchangeOutput() *SeedExchangeOutput {
 	return &SeedExchangeOutput{}
 }
 
-func NewSeedExchangeOutput(amount float64, txHash, txTime string, exchangeRate float64) *SeedExchangeOutput {
+func NewSeedExchangeOutput(amount, txHash, txTime, exchangeRate string) *SeedExchangeOutput {
 	return &SeedExchangeOutput{
 		amount,
 		txHash,
 		txTime,
 		exchangeRate,
+	}
+}
+
+func NewSeedHistoryKeys(did, target, challenge string) *SeedHistoryKeys {
+	return &SeedHistoryKeys{
+		did,
+		target,
+		challenge,
 	}
 }
 

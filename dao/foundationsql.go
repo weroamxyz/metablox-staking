@@ -1,7 +1,10 @@
 package dao
 
 import (
+	"math/big"
+
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/metabloxStaking/errval"
 	"github.com/metabloxStaking/models"
 )
 
@@ -74,16 +77,33 @@ func GetSeedHistory(did string) ([]*models.SeedExchange, error) {
 }
 
 func UploadSeedExchange(exchange *models.SeedExchange) error {
-	sqlStr := "insert into SeedExchangeHistory (VcID, UserDID, ExchangeRate, Amount) values (:VcID, :UserDID, :ExchangeRate, :Amount)"
+	sqlStr := "insert into SeedExchangeHistory (UserDID, TargetDID, Challenge, ExchangeRate, Amount) values (:UserDID, :TargetDID, :Challenge, :ExchangeRate, :Amount)"
 	_, err := SqlDB.NamedExec(sqlStr, exchange)
 	return err
 }
 
-func GetExchangeRate(id string) (float64, error) {
-	var rate float64
+func CheckIfExchangeExists(keys *models.SeedHistoryKeys) error {
+	var count int
+	sqlStr := "select count(*) from SeedExchangeHistory where UserDID = ? and TargetDID = ? and Challenge = ?"
+	err := SqlDB.Get(&count, sqlStr, keys.DID, keys.Target, keys.Challenge)
+	if err != nil {
+		return err
+	}
+	if count != 0 {
+		return errval.ErrSeedAlreadyExchanged
+	}
+	return nil
+}
+
+func GetExchangeRate(id string) (*big.Int, error) {
+	var stringRate string
 	sqlStr := "select ExchangeRate from ExchangeRate where ID = ?"
-	err := SqlDB.Get(&rate, sqlStr, id)
-	return rate, err
+	err := SqlDB.Get(&stringRate, sqlStr, id)
+	bigRate, success := big.NewInt(0).SetString(stringRate, 10)
+	if !success {
+		return nil, errval.ErrExchangeRateNotNumber
+	}
+	return bigRate, err
 }
 
 func CheckIfDIDIsValidator(did string) (bool, error) {

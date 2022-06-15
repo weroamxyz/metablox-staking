@@ -1,13 +1,13 @@
 package interest
 
 import (
-	"math/big"
-
 	"github.com/metabloxStaking/dao"
+	"math/big"
+	"strconv"
+
 	"github.com/metabloxStaking/models"
 	"github.com/stretchr/testify/assert"
 
-	"strconv"
 	"testing"
 	"time"
 )
@@ -21,35 +21,35 @@ func TestTruncateToHour(t *testing.T) {
 func TestCalculateCurrentAPY(t *testing.T) {
 	tests := []struct {
 		name           string
-		topUpLimit     float64
+		topUpLimit     *big.Int
 		lockUpPeriod   int
 		defaultAPY     float64
-		totalPrincipal float64
+		totalPrincipal *big.Int
 		expected       string
 	}{
 		{
 			name:           "total principal 400",
-			topUpLimit:     500000,
+			topUpLimit:     big.NewInt(500000),
 			lockUpPeriod:   180,
 			defaultAPY:     0.2,
-			totalPrincipal: 400,
-			expected:       "250.00",
+			totalPrincipal: big.NewInt(400),
+			expected:       "250",
 		},
 		{
 			name:           "total principal 900",
-			topUpLimit:     500000,
+			topUpLimit:     big.NewInt(500000),
 			lockUpPeriod:   180,
 			defaultAPY:     0.2,
-			totalPrincipal: 900,
-			expected:       "111.111111",
+			totalPrincipal: big.NewInt(900),
+			expected:       "111.1111111",
 		},
 		{
 			name:           "total principal 1500",
-			topUpLimit:     500000,
+			topUpLimit:     big.NewInt(500000),
 			lockUpPeriod:   180,
 			defaultAPY:     0.2,
-			totalPrincipal: 1500,
-			expected:       "66.666667",
+			totalPrincipal: big.NewInt(1500),
+			expected:       "66.66666667",
 		},
 	}
 	for _, tt := range tests {
@@ -59,7 +59,7 @@ func TestCalculateCurrentAPY(t *testing.T) {
 				LockUpPeriod: tt.lockUpPeriod,
 				DefaultAPY:   tt.defaultAPY,
 			}
-			assert.Equal(t, tt.expected, FormatFloat(CalculateCurrentAPY(product, big.NewInt(int64(tt.totalPrincipal)))))
+			assert.Equal(t, tt.expected, CalculateCurrentAPY(product, tt.totalPrincipal).String())
 		})
 	}
 }
@@ -73,30 +73,33 @@ func TestGetOrderInterestList(t *testing.T) {
 		ProductID:    "1",
 		UserDID:      "test",
 		Type:         "Pending",
-		StringAmount: "400",
+		Amount:       big.NewInt(400000000),
+		StringAmount: "400000000",
 	}
 	id, err := dao.CreateOrder(order)
 	assert.Nil(t, err)
 
-	err = dao.InsertPrincipalUpdate(order.ProductID, order.Amount.String())
+	err = dao.InsertPrincipalUpdate(order.ProductID, order.StringAmount)
 	assert.Nil(t, err)
 
 	txInfo := &models.TXInfo{
-		OrderID:        strconv.Itoa(id),
-		TXCurrencyType: "",
-		TXType:         "BuyIn",
-		TXHash:         nil,
-		Principal:      order.Amount,
-		Interest:       big.NewInt(0),
-		UserAddress:    "",
-		RedeemableTime: "2022-01-01 00:00:00",
+		OrderID:         strconv.Itoa(id),
+		TXCurrencyType:  "",
+		TXType:          "BuyIn",
+		TXHash:          nil,
+		Principal:       order.Amount,
+		StringPrincipal: order.Amount.String(),
+		Interest:        big.NewInt(0),
+		StringInterest:  "0",
+		UserAddress:     "",
+		RedeemableTime:  "2022-01-01 00:00:00",
 	}
 	err = dao.SubmitBuyin(txInfo)
 	assert.Nil(t, err)
 
-	until := time.Now().Add(time.Hour)
+	until := time.Now().UTC().Add(time.Hour)
 	result, err := GetOrderInterestList(strconv.Itoa(id), until)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
-	assert.Equal(t, "11.574074", result[0].InterestGain.String())
+	assert.Equal(t, "11574074", result[0].InterestGain.String())
 }

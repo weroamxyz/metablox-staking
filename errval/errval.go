@@ -30,4 +30,6 @@ var (
 	ErrInterestGainNotNumber        = errors.New("failed to parse InterestGain as valid number")
 	ErrTotalInterestGainNotNumber   = errors.New("failed to parse TotalInterestGain as valid number")
 	ErrTotalPrincipalNotNumber      = errors.New("failed to parse TotalPrincipal as valid number")
+	ErrTopUpLimitNotNumber          = errors.New("failed to parse TopUpLimit as valid number")
+	ErrBurnedInterestNotNumber      = errors.New("failed to parse BurnedInterest as valid number")
 )

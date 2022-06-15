@@ -18,6 +18,8 @@ const OrderTypeComplete = "Complete"
 
 const CurrencyTypeMBLX = "MBLX"
 
+const MinimumUnitToMBLX = 1000000
+
 type Order struct {
 	OrderID                   string `db:"OrderID"`
 	ProductID                 string `db:"ProductID"`
@@ -35,23 +37,25 @@ type Order struct {
 }
 
 type StakingProduct struct {
-	ID             string  `db:"ID" json:"id"`
-	ProductName    string  `db:"ProductName" json:"productName"`
-	MinOrderValue  int     `db:"MinOrderValue" json:"minOrderValue"`
-	TopUpLimit     float64 `db:"TopUpLimit" json:"topUpLimit"`
-	MinRedeemValue int     `db:"MinRedeemValue" json:"minRedeemValue"`
-	LockUpPeriod   int     `db:"LockUpPeriod" json:"lockUpPeriod"`
-	DefaultAPY     float64 `db:"DefaultAPY" json:"-"`
-	CurrentAPY     float64 `json:"currentAPY" json:"-"`
-	CreateDate     string  `db:"CreateDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
-	StartDate      string  `db:"StartDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
-	Term           int     `db:"Term" json:"-"`
-	BurnedInterest float64 `db:"BurnedInterest" json:"-"`
-	NextProductID  *string `db:"NextProductID" json:"-"`
-	PaymentAddress string  `db:"PaymentAddress" json:"-"`
-	CurrencyType   string  `db:"CurrencyType" json:"-"`
-	Network        string  `db:"Network" json:"-"`
-	Status         bool    `db:"Status" json:"status"`
+	ID                   string `db:"ID" json:"id"`
+	ProductName          string `db:"ProductName" json:"productName"`
+	MinOrderValue        int    `db:"MinOrderValue" json:"minOrderValue"`
+	TopUpLimit           *big.Int
+	StringTopUpLimit     string  `db:"TopUpLimit" json:"topUpLimit"`
+	MinRedeemValue       int     `db:"MinRedeemValue" json:"minRedeemValue"`
+	LockUpPeriod         int     `db:"LockUpPeriod" json:"lockUpPeriod"`
+	DefaultAPY           float64 `db:"DefaultAPY" json:"-"`
+	CurrentAPY           float64 `json:"currentAPY" json:"-"`
+	CreateDate           string  `db:"CreateDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
+	StartDate            string  `db:"StartDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
+	Term                 int     `db:"Term" json:"-"`
+	BurnedInterest       *big.Int
+	StringBurnedInterest string  `db:"BurnedInterest" json:"-"`
+	NextProductID        *string `db:"NextProductID" json:"-"`
+	PaymentAddress       string  `db:"PaymentAddress" json:"-"`
+	CurrencyType         string  `db:"CurrencyType" json:"-"`
+	Network              string  `db:"Network" json:"-"`
+	Status               bool    `db:"Status" json:"status"`
 }
 
 type User struct {
@@ -462,6 +466,19 @@ func SetOrderBigFields(order *Order) error {
 	order.Amount, success = big.NewInt(0).SetString(order.StringAmount, 10)
 	if !success {
 		return errval.ErrAmountNotNumber
+	}
+	return nil
+}
+
+func SetStakingProductBigFields(product *StakingProduct) error {
+	var success bool
+	product.TopUpLimit, success = new(big.Int).SetString(product.StringTopUpLimit, 10)
+	if !success {
+		return errval.ErrTopUpLimitNotNumber
+	}
+	product.BurnedInterest, success = new(big.Int).SetString(product.StringBurnedInterest, 10)
+	if !success {
+		return errval.ErrBurnedInterestNotNumber
 	}
 	return nil
 }

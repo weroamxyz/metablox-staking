@@ -20,24 +20,31 @@ func CalculateInterest() float64 { //placeholder
 	return 12.34
 }
 
-func calculatePeriodInterest(product *models.StakingProduct) float64 {
-	MB := product.TopUpLimit
-	R := product.DefaultAPY
+func calculatePeriodInterest(product *models.StakingProduct) *big.Float {
+	MB := new(big.Float).SetInt(product.TopUpLimit)
+	R := big.NewFloat(product.DefaultAPY)
 	N := float64(product.LockUpPeriod)
-	return (MB * R) / (360.0 / N)
+	// result = (MB * R) / (360.0 / N)
+	result := MB.Mul(MB, R)
+	return result.Quo(result, big.NewFloat(360.0/N))
 }
 
-func calculateMaxAPY(product *models.StakingProduct) float64 {
+func calculateMaxAPY(product *models.StakingProduct) *big.Float {
 	A := calculatePeriodInterest(product)
-	Z := float64(product.MinOrderValue)
+	Z := big.NewFloat(float64(product.MinOrderValue))
 	N := float64(product.LockUpPeriod)
-	return (A / Z) * (360.0 / N)
+	// result = (A / Z) * (360.0 / N)
+	result := A.Quo(A, Z)
+	return result.Mul(result, big.NewFloat(360.0/N))
 }
 
-func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal *big.Int) float64 {
+func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal *big.Int) *big.Float {
 	A := calculatePeriodInterest(product)
 	N := float64(product.LockUpPeriod)
-	return (A / float64(totalPrincipal.Int64())) * (360.0 / N)
+	TP := new(big.Float).SetInt(totalPrincipal)
+	// result = (A / TP) * (360.0 / N)
+	result := A.Quo(A, TP)
+	return result.Mul(result, big.NewFloat(360.0/N))
 }
 
 func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInterest, error) {
@@ -93,10 +100,10 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 			}
 		}
 		// calculate numbers at given time
-		totalPrincipal := 0.0
+		totalPrincipal := big.NewInt(0)
 		principalIndex = findMostRecentPrincipalUpdate(principalUpdates, latestTime)
 		if principalIndex >= 0 {
-			totalPrincipal = float64(principalUpdates[principalIndex].TotalPrincipal.Int64())
+			totalPrincipal = principalUpdates[principalIndex].TotalPrincipal
 		}
 		interest, err := calculateOrderInterest(order, product, latestTime, totalPrincipal)
 		if err != nil {
@@ -133,19 +140,25 @@ func GetOrderInterestList(orderID string, until time.Time) ([]*models.OrderInter
 	return interestList, nil
 }
 
-func calculateOrderInterest(order *models.Order, product *models.StakingProduct, when time.Time, totalPrincipal float64) (*models.OrderInterest, error) {
+func calculateOrderInterest(order *models.Order, product *models.StakingProduct, when time.Time, totalPrincipal *big.Int) (*models.OrderInterest, error) {
 	principal, err := dao.GetOrderBuyInPrincipal(order.OrderID)
 	if err != nil {
 		return nil, err
 	}
 
+	CAPY := CalculateCurrentAPY(product, totalPrincipal)
+	// interestGain = (interest.APY / (360.0 / N)) * principal * (1 / (N * 24))
+	N := float64(product.LockUpPeriod)
+	interestGain := new(big.Float).Quo(CAPY, big.NewFloat(360.0/N))
+	interestGain.Mul(interestGain, new(big.Float).SetInt(principal))
+	interestGain.Mul(interestGain, big.NewFloat(1/(N*24)))
+
 	interest := models.CreateOrderInterest()
 	interest.OrderID = order.OrderID
-	interest.APY = CalculateCurrentAPY(product, big.NewInt(int64(totalPrincipal)))
+	interest.APY, _ = CAPY.Float64()
 	interest.Time = when.Format(timeFormat)
+	interest.InterestGain, _ = interestGain.Int(nil)
 
-	N := float64(product.LockUpPeriod)
-	interest.InterestGain = big.NewInt(int64((interest.APY / (360.0 / N)) * float64(principal.Int64()) * (1 / (N * 24))))
 	return interest, nil
 }
 

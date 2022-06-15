@@ -62,6 +62,10 @@ func GetProductInfoByID(productID string) (*models.StakingProduct, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = models.SetStakingProductBigFields(product)
+	if err != nil {
+		return nil, err
+	}
 	err = validate.Struct(product)
 	if err != nil {
 		return nil, err

@@ -2,6 +2,7 @@ package settings
 
 import (
 	"runtime"
+	"strings"
 
 	"github.com/fsnotify/fsnotify"
 	logger "github.com/sirupsen/logrus"
@@ -17,10 +18,10 @@ func Init() (err error) {
 		return err
 	}
 
-	profile := viper.GetString("profile")
+	network := viper.GetString("network")
 
-	if profile != "" {
-		viper.SetConfigFile(filePath + "/config-" + profile + ".yaml")
+	if strings.EqualFold("testnet", network) {
+		viper.SetConfigFile(filePath + "/configDev.yaml")
 		err = viper.MergeInConfig()
 		if err != nil {
 			return err

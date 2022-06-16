@@ -29,7 +29,7 @@ var (
 	registryInstance *registry.Registry
 )
 
-const transferMethodName = "func_2093253501"
+const transferMethodName = "Transfer"
 
 func Init() error {
 	var err error
@@ -121,9 +121,9 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 		return errval.ErrContractParam
 	}
 
-	centerAddress := params[0].Value
+	toAddress := params[0].Value
 	value := params[1].Value
-	if !regutil.IsETHAddress(centerAddress) || common.HexToAddress(centerAddress) != tokenutil.CenterAddress() {
+	if !regutil.IsETHAddress(toAddress) || toAddress != order.PaymentAddress {
 		return errval.ErrWalletAddress
 	}
 

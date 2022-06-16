@@ -88,11 +88,14 @@ func BuyinTestOrderWithDate(order *models.Order, date string) (string, error) {
 
 	// create corresponding txinfo
 	txInfo := &models.TXInfo{
-		OrderID:        strconv.Itoa(id),
-		TXType:         models.TxTypeBuyIn,
-		Principal:      order.Amount,
-		CreateDate:     date,
-		RedeemableTime: date,
+		OrderID:         strconv.Itoa(id),
+		TXType:          models.TxTypeBuyIn,
+		TXHash:          "",
+		Principal:       order.Amount,
+		StringPrincipal: order.Amount.String(),
+		StringInterest:  "0",
+		CreateDate:      date,
+		RedeemableTime:  date,
 	}
 	err = SubmitBuyin(txInfo)
 	if err != nil {
@@ -135,11 +138,14 @@ func RedeemTestOrderWithDate(orderID string, date string) error {
 
 	// create corresponding txinfo
 	txInfo := &models.TXInfo{
-		OrderID:        orderID,
-		TXType:         models.TxTypeOrderClosure,
-		Principal:      order.Amount,
-		CreateDate:     date,
-		RedeemableTime: date,
+		OrderID:         orderID,
+		TXType:          models.TxTypeOrderClosure,
+		TXHash:          "",
+		Principal:       order.Amount,
+		StringPrincipal: order.Amount.String(),
+		StringInterest:  "0",
+		CreateDate:      date,
+		RedeemableTime:  date,
 	}
 
 	err = RedeemOrder(txInfo, interestInfo.AccumulatedInterest.String())

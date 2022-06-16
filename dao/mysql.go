@@ -104,6 +104,10 @@ func GetAllProductInfo() ([]*models.StakingProduct, error) {
 		if err != nil {
 			return nil, err
 		}
+		err = models.SetStakingProductBigFields(product)
+		if err != nil {
+			return nil, err
+		}
 		products = append(products, product)
 	}
 	return products, err
@@ -426,10 +430,18 @@ func GetUserAddressByOrderID(orderID string) (string, error) {
 	return userAddress, nil
 }
 
-func GetOrderBuyInPrincipal(orderID string) (*big.Int, error) {
-	var buyInAmount string
+func PrepareGetOrderBuyInPrincipal() (*sqlx.Stmt, error) {
 	sqlStr := "select Principal from TXInfo where OrderID = ? and TXType = 'BuyIn'"
-	err := SqlDB.Get(&buyInAmount, sqlStr, orderID)
+	stmt, err := SqlDB.Preparex(sqlStr)
+	if err != nil {
+		return nil, err
+	}
+	return stmt, nil
+}
+
+func ExecuteGetOrderBuyInPrincipal(stmt *sqlx.Stmt, orderID string) (*big.Int, error) {
+	var buyInAmount string
+	err := stmt.Get(&buyInAmount, orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -622,10 +634,22 @@ func GetSortedOrderInterestListUntilDate(orderID string, until string) ([]*model
 	return interestList, nil
 }
 
-func GetMostRecentOrderInterestUntilDate(orderID string, until string) (*models.OrderInterest, error) {
-	interest := models.CreateOrderInterest()
+func PrepareGetMostRecentOrderInterestUntilDate() (*sqlx.Stmt, error) {
 	sqlStr := `select * from OrderInterest where OrderID = ? and Time <= ? order by Time desc`
-	err := SqlDB.Get(interest, sqlStr, orderID, until)
+	stmt, err := SqlDB.Preparex(sqlStr)
+	if err != nil {
+		return nil, err
+	}
+	return stmt, nil
+}
+
+func ExecuteGetMostRecentOrderInterestUntilDate(stmt *sqlx.Stmt, orderID string, until string) (*models.OrderInterest, error) {
+	interest := models.CreateOrderInterest()
+	err := stmt.Get(interest, orderID, until)
+	if err != nil {
+		return nil, err
+	}
+	err = models.SetOrderInterestBigFields(interest)
 	if err != nil {
 		return nil, err
 	}

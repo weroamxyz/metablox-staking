@@ -2,6 +2,7 @@ package interest
 
 import (
 	"database/sql"
+	"github.com/jmoiron/sqlx"
 	"math/big"
 	"sort"
 	"time"
@@ -40,14 +41,20 @@ func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal *big.Int
 	return result.Mul(result, big.NewFloat(360.0/N))
 }
 
-func UpdateOrderInterest(orderID string, product *models.StakingProduct, principalUpdates []*models.PrincipalUpdate, until time.Time) error {
+func updateOrderInterest(orderID string, product *models.StakingProduct, principalUpdates []*models.PrincipalUpdate,
+	until time.Time, getPrincipalStmt *sqlx.Stmt, getRecentInterestStmt *sqlx.Stmt) error {
+
 	targetTime := TruncateToHour(until.UTC())
+	orderPrincipal, err := dao.ExecuteGetOrderBuyInPrincipal(getPrincipalStmt, orderID)
+	if err != nil {
+		return err
+	}
 
 	// latestTime will be set to either the latest orderInterest + 1 hour, or order date + 1 hour if there is no orderInterest yet
 	var latestTime time.Time
 	var latestSum *big.Int
 
-	latestInterest, err := dao.GetMostRecentOrderInterestUntilDate(orderID, targetTime.Format(TimeFormat))
+	latestInterest, err := dao.ExecuteGetMostRecentOrderInterestUntilDate(getRecentInterestStmt, orderID, targetTime.Format(TimeFormat))
 	if err == nil {
 		latestTime, _ = time.Parse(TimeFormat, latestInterest.Time)
 		latestSum = latestInterest.TotalInterestGain
@@ -90,7 +97,7 @@ func UpdateOrderInterest(orderID string, product *models.StakingProduct, princip
 		if principalIndex >= 0 {
 			totalPrincipal = principalUpdates[principalIndex].TotalPrincipal
 		}
-		interest, err := calculateOrderInterest(orderID, product, latestTime, totalPrincipal)
+		interest, err := calculateOrderInterest(orderID, orderPrincipal, product, latestTime, totalPrincipal)
 		if err != nil {
 			return err
 		}
@@ -120,17 +127,12 @@ func UpdateOrderInterest(orderID string, product *models.StakingProduct, princip
 	return nil
 }
 
-func calculateOrderInterest(orderID string, product *models.StakingProduct, when time.Time, totalPrincipal *big.Int) (*models.OrderInterest, error) {
-	principal, err := dao.GetOrderBuyInPrincipal(orderID)
-	if err != nil {
-		return nil, err
-	}
-
+func calculateOrderInterest(orderID string, orderPrincipal *big.Int, product *models.StakingProduct, when time.Time, totalPrincipal *big.Int) (*models.OrderInterest, error) {
 	CAPY := CalculateCurrentAPY(product, totalPrincipal)
 	// interestGain = (interest.APY / (360.0 / N)) * principal * (1 / (N * 24))
 	N := float64(product.LockUpPeriod)
 	interestGain := new(big.Float).Quo(CAPY, big.NewFloat(360.0/N))
-	interestGain.Mul(interestGain, new(big.Float).SetInt(principal))
+	interestGain.Mul(interestGain, new(big.Float).SetInt(orderPrincipal))
 	interestGain.Mul(interestGain, big.NewFloat(1/(N*24)))
 
 	interest := models.CreateOrderInterest()
@@ -162,7 +164,7 @@ func StartHourlyTimer() {
 	go func() {
 		for {
 			currentTime := TruncateToHour(time.Now().UTC())
-			updateAllOrderInterest(currentTime)
+			UpdateAllOrderInterest(currentTime)
 
 			nextHour := currentTime.Add(time.Hour)
 			timer := time.NewTimer(nextHour.Sub(time.Now()))
@@ -172,12 +174,23 @@ func StartHourlyTimer() {
 	return
 }
 
-func updateAllOrderInterest(currentTime time.Time) {
+func UpdateAllOrderInterest(currentTime time.Time) {
 	products, err := dao.GetAllProductInfo()
 	if err != nil {
 		logger.Warn(err)
 		return
 	}
+	getRecentInterestStmt, err := dao.PrepareGetMostRecentOrderInterestUntilDate()
+	if err != nil {
+		logger.Warn(err)
+		return
+	}
+	getPrincipalStmt, err := dao.PrepareGetOrderBuyInPrincipal()
+	if err != nil {
+		logger.Warn(err)
+		return
+	}
+
 	for _, product := range products {
 		// 1. carry over the expired products' total principal (individual products will update their ids as they calculate)
 		if product.Status && isProductExpired(product, currentTime) {
@@ -215,7 +228,7 @@ func updateAllOrderInterest(currentTime time.Time) {
 			return
 		}
 		for _, id := range orderIDs {
-			err = UpdateOrderInterest(id, product, principalUpdates, currentTime)
+			err = updateOrderInterest(id, product, principalUpdates, currentTime, getPrincipalStmt, getRecentInterestStmt)
 			if err != nil {
 				logger.Warn(err)
 			}

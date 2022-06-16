@@ -99,10 +99,6 @@ func NewSigner(gasLimit uint64) (*bind.TransactOpts, error) {
 	return signer, nil
 }
 
-func EthPendingBalance(address common.Address) (*big.Int, error) {
-	return client.PendingBalanceAt(context.Background(), address)
-}
-
 func BalanceOf(address common.Address) (*big.Int, error) {
 	token, err := NewToken()
 	if err != nil {
@@ -131,7 +127,10 @@ func Transfer(to common.Address, amount *big.Int) (*types.Transaction, error) {
 		return nil, err
 	}
 	// 4. check eth Balance
-	ethBalance, _ := EthPendingBalance(centerAddress)
+	ethBalance, err := client.BalanceAt(context.Background(), centerAddress, nil)
+	if err != nil {
+		return nil, err
+	}
 	if !checkEthBalance(ethBalance, signer.GasPrice, signer.GasLimit) {
 		return nil, errval.ErrETHBalance
 	}
@@ -139,7 +138,6 @@ func Transfer(to common.Address, amount *big.Int) (*types.Transaction, error) {
 	return token.Transfer(signer, to, amount)
 }
 
-//todo: figure out why ethclient's EthPendingBalance is always returning 0 and restore functionality here after fixing the issue
 func checkEthBalance(balance *big.Int, gasPrice *big.Int, gasLimit uint64) bool {
-	return true //balance.Cmp(new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(gasLimit))) > 0
+	return balance.Cmp(new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(gasLimit))) > 0
 }

@@ -466,45 +466,53 @@ func ConvertCredentialSubject(vc *foundationModels.VerifiableCredential) {
 }
 
 func SetOrderBigFields(order *Order) error {
-	var success bool
-	order.AccumulatedInterest, success = big.NewInt(0).SetString(order.StringAccumulatedInterest, 10)
-	if !success {
-		return errval.ErrAccumulatedInterestNotNumber
-	}
-	order.TotalInterestGained, success = big.NewInt(0).SetString(order.StringTotalInterestGained, 10)
-	if !success {
-		return errval.ErrTotalInterestGainedNotNumber
-	}
-	order.Amount, success = big.NewInt(0).SetString(order.StringAmount, 10)
-	if !success {
+	f, _, err := big.ParseFloat(order.StringAmount, 10, 128, big.ToNearestEven)
+	if err != nil {
 		return errval.ErrAmountNotNumber
 	}
+	order.Amount, _ = f.Int(nil)
+
+	f, _, err = big.ParseFloat(order.StringAccumulatedInterest, 10, 128, big.ToNearestEven)
+	if err != nil {
+		return errval.ErrAccumulatedInterestNotNumber
+	}
+	order.AccumulatedInterest, _ = f.Int(nil)
+
+	f, _, err = big.ParseFloat(order.StringTotalInterestGained, 10, 128, big.ToNearestEven)
+	if err != nil {
+		return errval.ErrTotalInterestGainedNotNumber
+	}
+	order.TotalInterestGained, _ = f.Int(nil)
 	return nil
 }
 
 func SetStakingProductBigFields(product *StakingProduct) error {
-	var success bool
-	product.TopUpLimit, success = new(big.Int).SetString(product.StringTopUpLimit, 10)
-	if !success {
+	f, _, err := big.ParseFloat(product.StringTopUpLimit, 10, 128, big.ToNearestEven)
+	if err != nil {
 		return errval.ErrTopUpLimitNotNumber
 	}
-	product.BurnedInterest, success = new(big.Int).SetString(product.StringBurnedInterest, 10)
-	if !success {
+	product.TopUpLimit, _ = f.Int(nil)
+
+	f, _, err = big.ParseFloat(product.StringBurnedInterest, 10, 128, big.ToNearestEven)
+	if err != nil {
 		return errval.ErrBurnedInterestNotNumber
 	}
+	product.BurnedInterest, _ = f.Int(nil)
 	return nil
 }
 
 func SetTXInfoBigFields(txinfo *TXInfo) error {
-	var success bool
-	txinfo.Principal, success = big.NewInt(0).SetString(txinfo.StringPrincipal, 10)
-	if !success {
+	f, _, err := big.ParseFloat(txinfo.StringPrincipal, 10, 128, big.ToNearestEven)
+	if err != nil {
 		return errval.ErrPrincipalNotNumber
 	}
-	txinfo.Interest, success = big.NewInt(0).SetString(txinfo.StringInterest, 10)
-	if !success {
+	txinfo.Principal, _ = f.Int(nil)
+
+	f, _, err = big.ParseFloat(txinfo.StringInterest, 10, 128, big.ToNearestEven)
+	if err != nil {
 		return errval.ErrInterestNotNumber
 	}
+	txinfo.Interest, _ = f.Int(nil)
 	return nil
 }
 
@@ -539,19 +547,19 @@ func SetOrderInterestInfoBigFields(info *OrderInterestInfo) error {
 }
 
 func SetPrincipalUpdateBigFields(update *PrincipalUpdate) error {
-	var success bool
-	update.TotalPrincipal, success = big.NewInt(0).SetString(update.StringTotalPrincipal, 10)
-	if !success {
+	f, _, err := big.ParseFloat(update.StringTotalPrincipal, 10, 128, big.ToNearestEven)
+	if err != nil {
 		return errval.ErrTotalPrincipalNotNumber
 	}
+	update.TotalPrincipal, _ = f.Int(nil)
 	return nil
 }
 
 func SetStakingRecordBigFields(record *StakingRecord) error {
-	var success bool
-	record.PrincipalAmount, success = big.NewInt(0).SetString(record.StringPrincipalAmount, 10)
-	if !success {
-		return errval.ErrAmountNotNumber
+	f, _, err := big.ParseFloat(record.StringPrincipalAmount, 10, 128, big.ToNearestEven)
+	if err != nil {
+		return errval.ErrPrincipalNotNumber
 	}
+	record.PrincipalAmount, _ = f.Int(nil)
 	return nil
 }

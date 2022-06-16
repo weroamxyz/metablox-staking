@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"math/big"
+
 	"github.com/MetaBloxIO/metablox-foundation-services/registry"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,7 +19,6 @@ import (
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"math/big"
 )
 
 var (
@@ -26,6 +27,8 @@ var (
 	client           *ethclient.Client
 	registryInstance *registry.Registry
 )
+
+const transferMethodName = "func_2093253501"
 
 func Init() error {
 	var err error
@@ -108,7 +111,7 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 		return errval.ErrContractData
 	}
 
-	if method.Name != "Transfer" {
+	if method.Name != transferMethodName {
 		return errval.ErrContractMethod
 	}
 

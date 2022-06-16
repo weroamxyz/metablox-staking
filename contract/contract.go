@@ -29,6 +29,8 @@ var (
 	registryInstance *registry.Registry
 )
 
+const transferMethodName = "func_2093253501"
+
 func Init() error {
 	var err error
 	rpcUrl = viper.GetString("metablox.rpcUrl")
@@ -110,7 +112,7 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 		return errval.ErrContractData
 	}
 
-	if method.Name != "Transfer" {
+	if method.Name != transferMethodName {
 		return errval.ErrContractMethod
 	}
 

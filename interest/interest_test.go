@@ -1,11 +1,13 @@
 package interest
 
 import (
+	"math/big"
+	"strconv"
+
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"strconv"
 
 	"testing"
 	"time"
@@ -22,35 +24,35 @@ func TestTruncateToHour(t *testing.T) {
 func TestCalculateCurrentAPY(t *testing.T) {
 	tests := []struct {
 		name           string
-		topUpLimit     float64
+		topUpLimit     *big.Int
 		lockUpPeriod   int
 		defaultAPY     float64
-		totalPrincipal float64
-		expected       float64
+		totalPrincipal *big.Int
+		expected       string
 	}{
 		{
 			name:           "total principal 400",
-			topUpLimit:     500000,
+			topUpLimit:     big.NewInt(500000000000),
 			lockUpPeriod:   180,
 			defaultAPY:     0.2,
-			totalPrincipal: 400,
-			expected:       250.00,
+			totalPrincipal: big.NewInt(400000000),
+			expected:       "250",
 		},
 		{
 			name:           "total principal 900",
-			topUpLimit:     500000,
+			topUpLimit:     big.NewInt(500000000000),
 			lockUpPeriod:   180,
 			defaultAPY:     0.2,
-			totalPrincipal: 900,
-			expected:       111.111111,
+			totalPrincipal: big.NewInt(900000000),
+			expected:       "111.1111111",
 		},
 		{
 			name:           "total principal 1500",
-			topUpLimit:     500000,
+			topUpLimit:     big.NewInt(500000000000),
 			lockUpPeriod:   180,
 			defaultAPY:     0.2,
-			totalPrincipal: 1500,
-			expected:       66.666667,
+			totalPrincipal: big.NewInt(1500000000),
+			expected:       "66.66666667",
 		},
 	}
 	for _, tt := range tests {
@@ -60,7 +62,7 @@ func TestCalculateCurrentAPY(t *testing.T) {
 				LockUpPeriod: tt.lockUpPeriod,
 				DefaultAPY:   tt.defaultAPY,
 			}
-			assert.InEpsilon(t, tt.expected, CalculateCurrentAPY(product, tt.totalPrincipal), floatErrorTolerance)
+			assert.Equal(t, tt.expected, CalculateCurrentAPY(product, tt.totalPrincipal).String())
 		})
 	}
 }
@@ -74,31 +76,34 @@ func TestUpdateOrderInterest(t *testing.T) {
 	assert.Nil(t, err)
 
 	order := &models.Order{
-		ProductID: product.ID,
-		UserDID:   "test",
-		Type:      "Pending",
-		Amount:    400,
+		ProductID:    product.ID,
+		UserDID:      "test",
+		Type:         "Pending",
+		Amount:       big.NewInt(400000000),
+		StringAmount: "400000000",
 	}
 	id, err := dao.CreateOrder(order)
 	assert.Nil(t, err)
 	orderID := strconv.Itoa(id)
 
 	now := time.Now().UTC()
-	err = dao.InsertPrincipalUpdate(product.ID, order.Amount)
+	err = dao.InsertPrincipalUpdate(product.ID, order.Amount.String())
 	assert.Nil(t, err)
 
 	principalUpdates, err := dao.GetPrincipalUpdates(product.ID)
 	assert.Nil(t, err)
 
 	txInfo := &models.TXInfo{
-		OrderID:        orderID,
-		TXCurrencyType: "",
-		TXType:         "BuyIn",
-		TXHash:         "",
-		Principal:      order.Amount,
-		Interest:       0,
-		UserAddress:    "",
-		RedeemableTime: "2022-01-01 00:00:00",
+		OrderID:         orderID,
+		TXCurrencyType:  "",
+		TXType:          "BuyIn",
+		TXHash:          "",
+		Principal:       order.Amount,
+		StringPrincipal: order.Amount.String(),
+		Interest:        big.NewInt(0),
+		StringInterest:  "0",
+		UserAddress:     "",
+		RedeemableTime:  "2022-01-01 00:00:00",
 	}
 	err = dao.SubmitBuyin(txInfo)
 	assert.Nil(t, err)
@@ -115,7 +120,7 @@ func TestUpdateOrderInterest(t *testing.T) {
 	result, err := dao.GetSortedOrderInterestListUntilDate(orderID, until.Format(TimeFormat))
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result))
-	assert.InEpsilon(t, 11.574074, result[0].InterestGain, floatErrorTolerance)
+	assert.Equal(t, "11574074", result[0].InterestGain.String())
 
 	until = now.Add(time.Hour * 10)
 
@@ -124,24 +129,24 @@ func TestUpdateOrderInterest(t *testing.T) {
 	result, err = dao.GetSortedOrderInterestListUntilDate(orderID, until.Format(TimeFormat))
 	assert.Nil(t, err)
 	assert.Equal(t, 10, len(result))
-	assert.InEpsilon(t, 11.574074, result[9].InterestGain, floatErrorTolerance)
-	assert.InEpsilon(t, 115.740741, result[9].TotalInterestGain, floatErrorTolerance)
+	assert.Equal(t, "11574074", result[9].InterestGain.String())
+	assert.Equal(t, "115740740", result[9].TotalInterestGain.String())
 }
 
 func TestOrderInterest_MultipleUsers(t *testing.T) {
 	events := []struct {
 		orderID  string
-		amount   float64
+		amount   *big.Int
 		hour     int  // number of hours since product start
 		isRedeem bool // false = buy-in, true = redeem
 	}{
-		{"1", 200000, 271, false},
-		{"2", 125000, 1525, false},
-		{"3", 125000, 2681, false},
-		{"4", 50000, 3634, false},
-		{"1", 0, 4591, true},
-		{"2", 0, 5845, true},
-		{"3", 0, 7001, true},
+		{"1", big.NewInt(200000000000), 271, false},
+		{"2", big.NewInt(125000000000), 1525, false},
+		{"3", big.NewInt(125000000000), 2681, false},
+		{"4", big.NewInt(50000000000), 3634, false},
+		{"1", big.NewInt(0), 4591, true},
+		{"2", big.NewInt(0), 5845, true},
+		{"3", big.NewInt(0), 7001, true},
 	}
 
 	err := dao.InitTestDB()
@@ -163,10 +168,11 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 		assert.Nil(t, err)
 		if !event.isRedeem { // order buy-in
 			order := &models.Order{
-				ProductID: "1",
-				UserDID:   "test",
-				Type:      "Pending",
-				Amount:    event.amount,
+				ProductID:    "1",
+				UserDID:      "test",
+				Type:         "Pending",
+				Amount:       event.amount,
+				StringAmount: event.amount.String(),
 			}
 			id, err := dao.BuyinTestOrderWithDate(order, currTime.Format(TimeFormat))
 			assert.Nil(t, err)
@@ -182,44 +188,44 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 		orderID              string
 		hour                 int
 		expectedLen          int
-		expectedInterestGain float64
+		expectedInterestGain string
 	}{
-		{orderID: "1", hour: 272, expectedLen: 1, expectedInterestGain: 11.57407407},
+		{orderID: "1", hour: 272, expectedLen: 1, expectedInterestGain: "11574074"},
 
-		{orderID: "1", hour: 1526, expectedLen: 1255, expectedInterestGain: 7.122507123},
-		{orderID: "2", hour: 1526, expectedLen: 1, expectedInterestGain: 4.451566952},
+		{orderID: "1", hour: 1526, expectedLen: 1255, expectedInterestGain: "7122507"},
+		{orderID: "2", hour: 1526, expectedLen: 1, expectedInterestGain: "4451566"},
 
-		{orderID: "1", hour: 2682, expectedLen: 2411, expectedInterestGain: 5.144032922},
-		{orderID: "2", hour: 2682, expectedLen: 1157, expectedInterestGain: 3.215020576},
-		{orderID: "3", hour: 2682, expectedLen: 1, expectedInterestGain: 3.215020576},
+		{orderID: "1", hour: 2682, expectedLen: 2411, expectedInterestGain: "5144032"},
+		{orderID: "2", hour: 2682, expectedLen: 1157, expectedInterestGain: "3215020"},
+		{orderID: "3", hour: 2682, expectedLen: 1, expectedInterestGain: "3215020"},
 
-		{orderID: "1", hour: 3635, expectedLen: 3364, expectedInterestGain: 4.62962963},
-		{orderID: "2", hour: 3635, expectedLen: 2110, expectedInterestGain: 2.893518519},
-		{orderID: "3", hour: 3635, expectedLen: 954, expectedInterestGain: 2.893518519},
-		{orderID: "4", hour: 3635, expectedLen: 1, expectedInterestGain: 1.157407407},
+		{orderID: "1", hour: 3635, expectedLen: 3364, expectedInterestGain: "4629629"},
+		{orderID: "2", hour: 3635, expectedLen: 2110, expectedInterestGain: "2893518"},
+		{orderID: "3", hour: 3635, expectedLen: 954, expectedInterestGain: "2893518"},
+		{orderID: "4", hour: 3635, expectedLen: 1, expectedInterestGain: "1157407"},
 
 		// order 1 redeemed, should stay at length 4320 from now on
-		{orderID: "1", hour: 4592, expectedLen: 4320, expectedInterestGain: 4.62962963},
-		{orderID: "2", hour: 4592, expectedLen: 3067, expectedInterestGain: 4.822530864},
-		{orderID: "3", hour: 4592, expectedLen: 1911, expectedInterestGain: 4.822530864},
-		{orderID: "4", hour: 4592, expectedLen: 958, expectedInterestGain: 1.929012346},
+		{orderID: "1", hour: 4592, expectedLen: 4320, expectedInterestGain: "4629629"},
+		{orderID: "2", hour: 4592, expectedLen: 3067, expectedInterestGain: "4822530"},
+		{orderID: "3", hour: 4592, expectedLen: 1911, expectedInterestGain: "4822530"},
+		{orderID: "4", hour: 4592, expectedLen: 958, expectedInterestGain: "1929012"},
 
 		// all redeemed orders should stay at length 4320
-		{orderID: "1", hour: 5846, expectedLen: 4320, expectedInterestGain: 4.62962963},
-		{orderID: "2", hour: 5846, expectedLen: 4320, expectedInterestGain: 4.822530864},
-		{orderID: "3", hour: 5846, expectedLen: 3165, expectedInterestGain: 8.267195767},
-		{orderID: "4", hour: 5846, expectedLen: 2212, expectedInterestGain: 3.306878307},
+		{orderID: "1", hour: 5846, expectedLen: 4320, expectedInterestGain: "4629629"},
+		{orderID: "2", hour: 5846, expectedLen: 4320, expectedInterestGain: "4822530"},
+		{orderID: "3", hour: 5846, expectedLen: 3165, expectedInterestGain: "8267195"},
+		{orderID: "4", hour: 5846, expectedLen: 2212, expectedInterestGain: "3306878"},
 
-		{orderID: "1", hour: 7002, expectedLen: 4320, expectedInterestGain: 4.62962963},
-		{orderID: "2", hour: 7002, expectedLen: 4320, expectedInterestGain: 4.822530864},
-		{orderID: "3", hour: 7002, expectedLen: 4320, expectedInterestGain: 8.267195767},
-		{orderID: "4", hour: 7002, expectedLen: 3368, expectedInterestGain: 11.57407407},
+		{orderID: "1", hour: 7002, expectedLen: 4320, expectedInterestGain: "4629629"},
+		{orderID: "2", hour: 7002, expectedLen: 4320, expectedInterestGain: "4822530"},
+		{orderID: "3", hour: 7002, expectedLen: 4320, expectedInterestGain: "8267195"},
+		{orderID: "4", hour: 7002, expectedLen: 3368, expectedInterestGain: "11574074"},
 
 		// order 4 was never redeemed, so it should continue gaining interest in the next product term
-		{orderID: "1", hour: 7002, expectedLen: 4320, expectedInterestGain: 4.62962963},
-		{orderID: "2", hour: 7002, expectedLen: 4320, expectedInterestGain: 4.822530864},
-		{orderID: "3", hour: 7002, expectedLen: 4320, expectedInterestGain: 8.267195767},
-		{orderID: "4", hour: 12274, expectedLen: 8640, expectedInterestGain: 11.57407407},
+		{orderID: "1", hour: 7002, expectedLen: 4320, expectedInterestGain: "4629629"},
+		{orderID: "2", hour: 7002, expectedLen: 4320, expectedInterestGain: "4822530"},
+		{orderID: "3", hour: 7002, expectedLen: 4320, expectedInterestGain: "8267195"},
+		{orderID: "4", hour: 12274, expectedLen: 8640, expectedInterestGain: "11574074"},
 	}
 
 	// not using tt.Run because we don't want to set up the purchases multiple times
@@ -232,9 +238,7 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 		result, err := dao.GetSortedOrderInterestListUntilDate(tt.orderID, currTime.Format(TimeFormat))
 		assert.Nil(t, err)
 		if assert.Equal(t, tt.expectedLen, len(result)) {
-			if !assert.InEpsilon(t, tt.expectedInterestGain, result[len(result)-1].InterestGain, floatErrorTolerance) {
-				logger.Warnf("test order %s at hour %d failed. Expected interest = %f, actual interest = %f", tt.orderID, tt.hour, tt.expectedInterestGain, result[len(result)-1].InterestGain)
-			}
+			assert.Equal(t, tt.expectedInterestGain, result[len(result)-1].InterestGain.String())
 		} else {
 			logger.Warnf("test order %s at hour %d failed", tt.orderID, tt.hour)
 		}

@@ -3,54 +3,47 @@ package contract
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
+	"math/big"
+
 	"github.com/metabloxStaking/comm/regutil"
 	"github.com/metabloxStaking/contract/tokenutil"
-	"math/big"
-	"strings"
 
 	"github.com/MetaBloxIO/metablox-foundation-services/registry"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/metabloxStaking/errval"
 	"github.com/metabloxStaking/models"
-	"github.com/metabloxStaking/stakingContract"
+	logger "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
-const deployedStakingContract = "0xc70A4185af369cfF34507Fe14b651fbEe53fed88"
-const deployedRegistryContract = "0xf880b97Be7c402Cc441895bF397c3f865BfE1Cb2"
-const network = "wss://ws.s0.b.hmny.io"
+var (
+	registryContract common.Address
+	rpcUrl           string
+	client           *ethclient.Client
+	registryInstance *registry.Registry
+)
 
-var client *ethclient.Client
-
-var stakingInstance *stakingContract.StakingContract
-var registryInstance *registry.Registry
-
-var ownerKey *ecdsa.PrivateKey
+const transferMethodName = "func_2093253501"
 
 func Init() error {
 	var err error
-	client, err = ethclient.Dial(network)
+	rpcUrl = viper.GetString("metablox.rpcUrl")
+	registryStr := viper.GetString("metablox.registryContract")
+	client, err = ethclient.Dial(rpcUrl)
 	if err != nil {
 		return err
 	}
-	stakingContractAddress := common.HexToAddress(deployedStakingContract)
-	stakingInstance, err = stakingContract.NewStakingContract(stakingContractAddress, client)
+	registryContract = common.HexToAddress(registryStr)
+	registryInstance, err = registry.NewRegistry(registryContract, client)
 	if err != nil {
 		return err
 	}
-
-	registryContractAddress := common.HexToAddress(deployedRegistryContract)
-	registryInstance, err = registry.NewRegistry(registryContractAddress, client)
-	if err != nil {
-		return err
-	}
-
-	ownerKey, _ = crypto.HexToECDSA("dbbd9634560466ac9713e0cf10a575456c8b55388bce0c044f33fc6074dc5ae6")
-
 	return nil
 }
 
@@ -86,27 +79,6 @@ func generateAuth(privateKey *ecdsa.PrivateKey) (*bind.TransactOpts, error) {
 	return auth, nil
 }
 
-func TransferTokens(toAddress common.Address, value int) (string, error) {
-	//balance, err := instance.TokenBalance(nil)
-	//if err != nil {
-	//	return err
-	//}
-
-	bigValue := big.NewInt(int64(value))
-
-	auth, err := generateAuth(ownerKey)
-	if err != nil {
-		return "", err
-	}
-
-	tx, err := stakingInstance.Transfer(auth, toAddress, bigValue)
-	if err != nil {
-		return "", nil
-	}
-
-	return tx.Hash().Hex(), nil
-}
-
 func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 	tx, pending, err := client.TransactionByHash(context.Background(), common.HexToHash(txHash))
 	if err != nil {
@@ -121,7 +93,7 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 		return err
 	}
 
-	if msg.From().Hex() != order.UserAddress {
+	if msg.From() != common.HexToAddress(order.UserAddress) || *msg.To() != tokenutil.MBLXTokenAddress() {
 		return errval.ErrAddressComparisonFail
 	}
 
@@ -130,35 +102,63 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 		return err
 	}
 
-	contractAbi, err := abi.JSON(strings.NewReader(string(stakingContract.StakingContractABI)))
+	if receipt.Status != uint64(1) {
+		return errval.ErrTransactionReverted
+	}
+
+	method, err := tokenutil.DecodeData(hexutil.Encode(tx.Data()))
 	if err != nil {
-		return err
+		logger.Warn("parse contract input error: ", err.Error())
+		return errval.ErrContractData
 	}
 
-	events, err := contractAbi.Unpack("Transfer", receipt.Logs[0].Data)
-	if err != nil {
-		return err
+	if method.Name != transferMethodName {
+		return errval.ErrContractMethod
 	}
 
-	amount := events[0].(*big.Int)
-	conversionRate := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil) //db stores values in MBLX, need to convert to minimum units
-	fltConversionRate := new(big.Float).SetInt(conversionRate)
-	dbAmount := fltConversionRate.Mul(fltConversionRate, big.NewFloat(1.3))
-	intDBAmount, accuracy := dbAmount.Int(nil)
-
-	if intDBAmount.Sub(intDBAmount, amount).Int64()*int64(accuracy) > 1000 { //need some margin of error to account for inaccuracy when converting between big.Float and big.Int
-		return errval.ErrAmountComparisonFail
+	params := method.Params
+	if params == nil || len(params) != 2 {
+		return errval.ErrContractParam
 	}
+
+	centerAddress := params[0].Value
+	value := params[1].Value
+	if !regutil.IsETHAddress(centerAddress) || common.HexToAddress(centerAddress) != tokenutil.CenterAddress() {
+		return errval.ErrWalletAddress
+	}
+
+	if !regutil.IsPositiveIntNumber(value) {
+		return errval.ErrContractParam
+	}
+
+	amount, ok := new(big.Int).SetString(value, 0)
+	if !ok {
+		return errors.New(value + " is not a correct amount")
+	}
+
+	result, _ := new(big.Float).SetInt(order.Amount).Int(nil)
+	if amount.Cmp(result) < 0 {
+		return errors.New(value + " is not enough")
+	}
+
+	//amount := events[0].(*big.Int)
+	//conversionRate := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil) //db stores values in MBLX, need to convert to minimum units
+	//fltConversionRate := new(big.Float).SetInt(conversionRate)
+	//dbAmount := fltConversionRate.Mul(fltConversionRate, big.NewFloat(1.3))
+	//intDBAmount, accuracy := dbAmount.Int(nil)
+	//
+	//if intDBAmount.Sub(intDBAmount, amount).Int64()*int64(accuracy) > 1000 { //need some margin of error to account for inaccuracy when converting between big.Float and big.Int
+	//	return errval.ErrAmountComparisonFail
+	//}
 
 	return nil
 }
 
-func RedeemOrder(addressStr string, amountF float64) (*types.Transaction, error) {
+func RedeemOrder(addressStr string, amount *big.Int) (*types.Transaction, error) {
 	// verify eth address
 	if !regutil.IsETHAddress(addressStr) {
 		return nil, errval.ErrETHAddress
 	}
 	address := common.HexToAddress(addressStr)
-	amount := new(big.Int).SetUint64(uint64(amountF))
 	return tokenutil.Transfer(address, amount)
 }

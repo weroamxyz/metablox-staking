@@ -39,7 +39,7 @@ CREATE TABLE `Orders` (
                           `AccumulatedInterest` float NOT NULL DEFAULT '0',
                           `TotalInterestGained` float NOT NULL DEFAULT '0',
                           `PaymentAddress` varchar(45) NOT NULL,
-                          `Amount` float NOT NULL,
+                          `Amount` decimal(20) NOT NULL,
                           `UserAddress` varchar(45) NOT NULL,
                           PRIMARY KEY (`OrderID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -72,7 +72,7 @@ CREATE TABLE `PrincipalUpdates` (
                                     `ID` int NOT NULL AUTO_INCREMENT,
                                     `ProductID` int NOT NULL,
                                     `Time` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-                                    `TotalPrincipal` float NOT NULL,
+                                    `TotalPrincipal` decimal(20) NOT NULL,
                                     PRIMARY KEY (`ID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -88,14 +88,14 @@ CREATE TABLE `StakingProducts` (
                                    `ID` int NOT NULL AUTO_INCREMENT,
                                    `ProductName` varchar(100) NOT NULL,
                                    `MinOrderValue` int NOT NULL,
-                                   `TopUpLimit` float NOT NULL,
+                                   `TopUpLimit` decimal(20) NOT NULL,
                                    `MinRedeemValue` int NOT NULL,
                                    `LockUpPeriod` int NOT NULL,
                                    `DefaultAPY` float NOT NULL,
                                    `CreateDate` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
                                    `StartDate` timestamp(3) NOT NULL,
                                    `Term` int NOT NULL,
-                                   `BurnedInterest` float NOT NULL DEFAULT '0',
+                                   `BurnedInterest` decimal(20) NOT NULL DEFAULT '0',
                                    `NextProductID` int DEFAULT NULL,
                                    `Status` tinyint NOT NULL DEFAULT '1',
                                    `PaymentAddress` varchar(80) NOT NULL,
@@ -118,8 +118,8 @@ CREATE TABLE `TXInfo` (
                           `TXCurrencyType` varchar(10) NOT NULL,
                           `TXType` enum('BuyIn','OrderClosure','InterestOnly') NOT NULL,
                           `TXHash` varchar(66) NOT NULL,
-                          `Principal` float NOT NULL,
-                          `Interest` float NOT NULL,
+                          `Principal` decimal(20) NOT NULL,
+                          `Interest` decimal(20) NOT NULL,
                           `UserAddress` varchar(80) NOT NULL,
                           `CreateDate` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
                           `RedeemableTime` timestamp(3) NOT NULL,
@@ -133,8 +133,8 @@ CREATE TABLE `OrderInterest` (
                                  `OrderID` int NOT NULL,
                                  `Time` timestamp(3) NOT NULL,
                                  `APY` float NOT NULL,
-                                 `InterestGain` float NOT NULL,
-                                 `TotalInterestGain` float NOT NULL,
+                                 `InterestGain` decimal(20) NOT NULL,
+                                 `TotalInterestGain` decimal(20) NOT NULL,
                                  PRIMARY KEY (`ID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 

@@ -39,7 +39,7 @@ func GetProductInfoByIDHandler(c *gin.Context) {
 	if err != nil {
 		product.CurrentAPY = product.DefaultAPY
 	} else {
-		product.CurrentAPY = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal)
+		product.CurrentAPY, _ = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal).Float64()
 	}
 	ResponseSuccess(c, product)
 }
@@ -55,7 +55,7 @@ func GetAllProductInfoHandler(c *gin.Context) {
 		if err != nil {
 			product.CurrentAPY = product.DefaultAPY
 		} else {
-			product.CurrentAPY = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal)
+			product.CurrentAPY, _ = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal).Float64()
 		}
 	}
 	ResponseSuccess(c, products)
@@ -166,8 +166,7 @@ func GetMinerByIDHandler(c *gin.Context) {
 }
 
 func GetExchangeRateHandler(c *gin.Context) {
-	exchangeRateID := c.Param("id")
-	exchangeRate, err := dao.GetExchangeRate(exchangeRateID)
+	exchangeRate, err := GetExchangeRate(c)
 	if err != nil {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
@@ -184,16 +183,6 @@ func GetRewardHistoryHandler(c *gin.Context) {
 	}
 
 	ResponseSuccess(c, redeemedToken)
-}
-
-func ExchangeSeedHandler(c *gin.Context) {
-	output, err := ExchangeSeed(c)
-	if err != nil {
-		ResponseErrorWithMsg(c, CodeError, err.Error())
-		return
-	}
-
-	ResponseSuccess(c, output)
 }
 
 func GetNonceHandler(c *gin.Context) {

@@ -1,11 +1,13 @@
 package interest
 
 import (
+	"math/big"
+	"strconv"
+
 	"github.com/metabloxStaking/dao"
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"strconv"
 
 	"testing"
 	"time"
@@ -22,34 +24,34 @@ func TestTruncateToHour(t *testing.T) {
 func TestCalculateCurrentAPY(t *testing.T) {
 	tests := []struct {
 		name           string
-		topUpLimit     float64
+		topUpLimit     *big.Int
 		lockUpPeriod   int
 		defaultAPY     float64
-		totalPrincipal float64
+		totalPrincipal *big.Int
 		expected       float64
 	}{
 		{
 			name:           "total principal 400",
-			topUpLimit:     500000,
+			topUpLimit:     big.NewInt(500000),
 			lockUpPeriod:   180,
 			defaultAPY:     0.2,
-			totalPrincipal: 400,
+			totalPrincipal: big.NewInt(400),
 			expected:       250.00,
 		},
 		{
 			name:           "total principal 900",
-			topUpLimit:     500000,
+			topUpLimit:     big.NewInt(500000),
 			lockUpPeriod:   180,
 			defaultAPY:     0.2,
-			totalPrincipal: 900,
+			totalPrincipal: big.NewInt(900),
 			expected:       111.111111,
 		},
 		{
 			name:           "total principal 1500",
-			topUpLimit:     500000,
+			topUpLimit:     big.NewInt(500000),
 			lockUpPeriod:   180,
 			defaultAPY:     0.2,
-			totalPrincipal: 1500,
+			totalPrincipal: big.NewInt(1500),
 			expected:       66.666667,
 		},
 	}
@@ -77,14 +79,14 @@ func TestUpdateOrderInterest(t *testing.T) {
 		ProductID: product.ID,
 		UserDID:   "test",
 		Type:      "Pending",
-		Amount:    400,
+		Amount:    big.NewInt(400),
 	}
 	id, err := dao.CreateOrder(order)
 	assert.Nil(t, err)
 	orderID := strconv.Itoa(id)
 
 	now := time.Now().UTC()
-	err = dao.InsertPrincipalUpdate(product.ID, order.Amount)
+	err = dao.InsertPrincipalUpdate(product.ID, order.Amount.String())
 	assert.Nil(t, err)
 
 	principalUpdates, err := dao.GetPrincipalUpdates(product.ID)
@@ -94,9 +96,9 @@ func TestUpdateOrderInterest(t *testing.T) {
 		OrderID:        orderID,
 		TXCurrencyType: "",
 		TXType:         "BuyIn",
-		TXHash:         "",
+		TXHash:         nil,
 		Principal:      order.Amount,
-		Interest:       0,
+		Interest:       big.NewInt(0),
 		UserAddress:    "",
 		RedeemableTime: "2022-01-01 00:00:00",
 	}
@@ -126,17 +128,17 @@ func TestUpdateOrderInterest(t *testing.T) {
 func TestOrderInterest_MultipleUsers(t *testing.T) {
 	events := []struct {
 		orderID  string
-		amount   float64
+		amount   *big.Int
 		hour     int  // number of hours since product start
 		isRedeem bool // false = buy-in, true = redeem
 	}{
-		{"1", 200000, 271, false},
-		{"2", 125000, 1525, false},
-		{"3", 125000, 2681, false},
-		{"4", 50000, 3634, false},
-		{"1", 0, 4591, true},
-		{"2", 0, 5845, true},
-		{"3", 0, 7001, true},
+		{"1", big.NewInt(200000), 271, false},
+		{"2", big.NewInt(125000), 1525, false},
+		{"3", big.NewInt(125000), 2681, false},
+		{"4", big.NewInt(50000), 3634, false},
+		{"1", big.NewInt(0), 4591, true},
+		{"2", big.NewInt(0), 5845, true},
+		{"3", big.NewInt(0), 7001, true},
 	}
 
 	err := dao.InitTestDB()

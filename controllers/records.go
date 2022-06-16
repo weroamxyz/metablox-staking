@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"math/big"
 	"strconv"
 	"time"
 
@@ -51,8 +52,9 @@ func GetStakingRecords(c *gin.Context) ([]*models.StakingRecord, error) {
 		if err != nil {
 			return nil, err
 		}
-		record.InterestGain = interestInfo.AccumulatedInterest - interestInfo.TotalInterestGained
-		record.TotalAmount = record.InterestGain + record.PrincipalAmount
+		bigInterestGain := big.NewInt(0).Sub(interestInfo.AccumulatedInterest, interestInfo.TotalInterestGained)
+		record.InterestGain = bigInterestGain.String()
+		record.TotalAmount = big.NewInt(0).Add(bigInterestGain, record.PrincipalAmount).String()
 	}
 	return records, nil
 }

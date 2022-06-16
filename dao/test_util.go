@@ -3,11 +3,13 @@ package dao
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
+	"math/big"
+	"strconv"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
-	"io/ioutil"
-	"strconv"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -71,7 +73,7 @@ func executeSQLScript(path string) error {
 	return nil
 }
 
-func insertPrincipalUpdateWithTime(productID string, totalPrincipal float64, time string) error {
+func insertPrincipalUpdateWithTime(productID string, totalPrincipal string, time string) error {
 	sqlStr := `insert into PrincipalUpdates (ProductID, Time, TotalPrincipal) values (?, ?, ?)`
 	_, err := SqlDB.Exec(sqlStr, productID, time, totalPrincipal)
 	return err
@@ -106,14 +108,14 @@ func BuyinTestOrderWithDate(order *models.Order, date string) (string, error) {
 	newPrincipal := models.NewPrincipalUpdate()
 	oldPrincipal, err := GetLatestPrincipalUpdate(order.ProductID)
 	if err == nil {
-		newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal + txInfo.Principal
+		newPrincipal.TotalPrincipal = big.NewInt(0).Add(oldPrincipal.TotalPrincipal, txInfo.Principal)
 	} else if err == sql.ErrNoRows {
 		newPrincipal.TotalPrincipal = txInfo.Principal
 	} else {
 		return "", err
 	}
 
-	err = insertPrincipalUpdateWithTime(order.ProductID, newPrincipal.TotalPrincipal, date)
+	err = insertPrincipalUpdateWithTime(order.ProductID, newPrincipal.TotalPrincipal.String(), date)
 	if err != nil {
 		return "", err
 	}
@@ -140,7 +142,7 @@ func RedeemTestOrderWithDate(orderID string, date string) error {
 		RedeemableTime: date,
 	}
 
-	err = RedeemOrder(txInfo, interestInfo.AccumulatedInterest)
+	err = RedeemOrder(txInfo, interestInfo.AccumulatedInterest.String())
 	if err != nil {
 		return err
 	}
@@ -156,9 +158,9 @@ func RedeemTestOrderWithDate(orderID string, date string) error {
 	if err != nil {
 		return err
 	}
-	newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal - order.Amount
+	newPrincipal.TotalPrincipal = big.NewInt(0).Sub(oldPrincipal.TotalPrincipal, order.Amount)
 
-	err = insertPrincipalUpdateWithTime(order.ProductID, newPrincipal.TotalPrincipal, date)
+	err = insertPrincipalUpdateWithTime(order.ProductID, newPrincipal.TotalPrincipal.String(), date)
 	if err != nil {
 		return err
 	}

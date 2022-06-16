@@ -1,9 +1,11 @@
 package models
 
 import (
+	"math/big"
 	"time"
 
 	foundationModels "github.com/MetaBloxIO/metablox-foundation-services/models"
+	"github.com/metabloxStaking/errval"
 )
 
 const TxTypeBuyIn = "BuyIn"
@@ -16,37 +18,44 @@ const OrderTypeComplete = "Complete"
 
 const CurrencyTypeMBLX = "MBLX"
 
+const MinimumUnitToMBLX = 1000000
+
 type Order struct {
-	OrderID             string  `db:"OrderID"`
-	ProductID           string  `db:"ProductID"`
-	UserDID             string  `db:"UserDID"`
-	Type                string  `db:"Type" validate:"required,oneof=Pending Holding Complete"`
-	Term                int     `db:"Term"`
-	AccumulatedInterest float64 `db:"AccumulatedInterest"`
-	TotalInterestGained float64 `db:"TotalInterestGained"`
-	PaymentAddress      string  `db:"PaymentAddress"`
-	Amount              float64 `db:"Amount"`
-	UserAddress         string  `db:"UserAddress"`
+	OrderID                   string `db:"OrderID"`
+	ProductID                 string `db:"ProductID"`
+	UserDID                   string `db:"UserDID"`
+	Type                      string `db:"Type" validate:"required,oneof=Pending Holding Complete"`
+	Term                      int    `db:"Term"`
+	AccumulatedInterest       *big.Int
+	StringAccumulatedInterest string `db:"AccumulatedInterest" json:"-"`
+	TotalInterestGained       *big.Int
+	StringTotalInterestGained string `db:"TotalInterestGained" json:"-"`
+	PaymentAddress            string `db:"PaymentAddress"`
+	Amount                    *big.Int
+	StringAmount              string `db:"Amount" json:"-"`
+	UserAddress               string `db:"UserAddress"`
 }
 
 type StakingProduct struct {
-	ID             string  `db:"ID" json:"id"`
-	ProductName    string  `db:"ProductName" json:"productName"`
-	MinOrderValue  int     `db:"MinOrderValue" json:"minOrderValue"`
-	TopUpLimit     float64 `db:"TopUpLimit" json:"topUpLimit"`
-	MinRedeemValue int     `db:"MinRedeemValue" json:"minRedeemValue"`
-	LockUpPeriod   int     `db:"LockUpPeriod" json:"lockUpPeriod"`
-	DefaultAPY     float64 `db:"DefaultAPY" json:"-"`
-	CurrentAPY     float64 `json:"currentAPY" json:"-"`
-	CreateDate     string  `db:"CreateDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
-	StartDate      string  `db:"StartDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
-	Term           int     `db:"Term" json:"-"`
-	BurnedInterest float64 `db:"BurnedInterest" json:"-"`
-	NextProductID  *string `db:"NextProductID" json:"-"`
-	PaymentAddress string  `db:"PaymentAddress"`
-	CurrencyType   string  `db:"CurrencyType" json:"-"`
-	Network        string  `db:"Network" json:"-"`
-	Status         bool    `db:"Status" json:"status"`
+	ID                   string `db:"ID" json:"id"`
+	ProductName          string `db:"ProductName" json:"productName"`
+	MinOrderValue        int    `db:"MinOrderValue" json:"minOrderValue"`
+	TopUpLimit           *big.Int
+	StringTopUpLimit     string  `db:"TopUpLimit" json:"topUpLimit"`
+	MinRedeemValue       int     `db:"MinRedeemValue" json:"minRedeemValue"`
+	LockUpPeriod         int     `db:"LockUpPeriod" json:"lockUpPeriod"`
+	DefaultAPY           float64 `db:"DefaultAPY" json:"-"`
+	CurrentAPY           float64 `json:"currentAPY" json:"-"`
+	CreateDate           string  `db:"CreateDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
+	StartDate            string  `db:"StartDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
+	Term                 int     `db:"Term" json:"-"`
+	BurnedInterest       *big.Int
+	StringBurnedInterest string  `db:"BurnedInterest" json:"-"`
+	NextProductID        *string `db:"NextProductID" json:"-"`
+	PaymentAddress       string  `db:"PaymentAddress" json:"-"`
+	CurrencyType         string  `db:"CurrencyType" json:"-"`
+	Network              string  `db:"Network" json:"-"`
+	Status               bool    `db:"Status" json:"status"`
 }
 
 type User struct {
@@ -56,25 +65,29 @@ type User struct {
 }
 
 type TXInfo struct {
-	PaymentNo      string  `db:"PaymentNo"`
-	OrderID        string  `db:"OrderID"`
-	TXCurrencyType string  `db:"TXCurrencyType"`
-	TXType         string  `db:"TXType" validate:"required,oneof=BuyIn InterestOnly OrderClosure"`
-	TXHash         string  `db:"TXHash"`
-	Principal      float64 `db:"Principal"`
-	Interest       float64 `db:"Interest"`
-	UserAddress    string  `db:"UserAddress"`
-	CreateDate     string  `db:"CreateDate" validate:"omitempty,datetime=2006-01-02 15:04:05"`
-	RedeemableTime string  `db:"RedeemableTime" validate:"required,datetime=2006-01-02 15:04:05"`
+	PaymentNo       string  `db:"PaymentNo"`
+	OrderID         string  `db:"OrderID"`
+	TXCurrencyType  string  `db:"TXCurrencyType"`
+	TXType          string  `db:"TXType" validate:"required,oneof=BuyIn InterestOnly OrderClosure"`
+	TXHash          *string `db:"TXHash"`
+	Principal       *big.Int
+	StringPrincipal string `db:"Principal" json:"-"`
+	Interest        *big.Int
+	StringInterest  string `db:"Interest" json:"-"`
+	UserAddress     string `db:"UserAddress"`
+	CreateDate      string `db:"CreateDate" validate:"omitempty,datetime=2006-01-02 15:04:05"`
+	RedeemableTime  string `db:"RedeemableTime" validate:"required,datetime=2006-01-02 15:04:05"`
 }
 
 type OrderInterest struct {
-	ID                string  `db:"ID"`
-	OrderID           string  `db:"OrderID"`
-	Time              string  `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
-	APY               float64 `db:"APY"`
-	InterestGain      float64 `db:"InterestGain"`
-	TotalInterestGain float64 `db:"TotalInterestGain"`
+	ID                      string  `db:"ID"`
+	OrderID                 string  `db:"OrderID"`
+	Time                    string  `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
+	APY                     float64 `db:"APY"`
+	InterestGain            *big.Int
+	StringInterestGain      string `db:"InterestGain" json:"-"`
+	TotalInterestGain       *big.Int
+	StringTotalInterestGain string `db:"TotalInterestGain" json:"-"`
 }
 
 type PaymentInfo struct {
@@ -110,17 +123,18 @@ type SeedExchange struct {
 }
 
 type StakingRecord struct {
-	OrderID           string  `db:"OrderID"`
-	ProductID         string  `db:"ProductID"`
-	OrderStatus       string  `db:"Type"`
-	Term              *int    `db:"Term"`
-	PurchaseTime      string  `db:"CreateDate"`
-	PrincipalAmount   float64 `db:"Amount"`
-	TXCurrencyType    string  `db:"TXCurrencyType"`
-	InterestGain      float64
-	TotalAmount       float64
-	RedeemableTime    string `db:"RedeemableTime"`
-	IsInClosureWindow bool
+	OrderID               string `db:"OrderID"`
+	ProductID             string `db:"ProductID"`
+	OrderStatus           string `db:"Type"`
+	Term                  *int   `db:"Term"`
+	PurchaseTime          string `db:"CreateDate"`
+	PrincipalAmount       *big.Int
+	StringPrincipalAmount string `db:"Amount" json:"-"`
+	TXCurrencyType        string `db:"TXCurrencyType"`
+	InterestGain          string
+	TotalAmount           string
+	RedeemableTime        string `db:"RedeemableTime"`
+	IsInClosureWindow     bool
 }
 
 type ProductDetails struct {
@@ -140,12 +154,14 @@ type SeedInfo struct {
 }
 
 type OrderInterestInfo struct {
-	AccumulatedInterest float64 `db:"AccumulatedInterest"`
-	TotalInterestGained float64 `db:"TotalInterestGained"`
+	AccumulatedInterest       *big.Int
+	StringAccumulatedInterest string `db:"AccumulatedInterest" json:"-"`
+	TotalInterestGained       *big.Int
+	StringTotalInterestGained string `db:"TotalInterestGained" json:"-"`
 }
 
 type OrderInput struct {
-	Amount      float64
+	Amount      string
 	UserAddress string
 	UserDID     string
 	ProductID   string
@@ -163,7 +179,7 @@ type SubmitBuyinInput struct {
 
 type SubmitBuyinOutput struct {
 	ProductName    string
-	Amount         float64
+	Amount         string
 	Time           string
 	UserAddress    string
 	TXCurrencyType string
@@ -171,7 +187,7 @@ type SubmitBuyinOutput struct {
 
 type RedeemOrderOuput struct {
 	ProductName    string
-	Amount         float64
+	Amount         string
 	Time           string
 	ToAddress      string
 	TXCurrencyType string
@@ -179,10 +195,11 @@ type RedeemOrderOuput struct {
 }
 
 type PrincipalUpdate struct {
-	ID             string  `db:"ID"`
-	ProductID      string  `db:"ProductID"`
-	Time           string  `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
-	TotalPrincipal float64 `db:"TotalPrincipal"`
+	ID                   string `db:"ID"`
+	ProductID            string `db:"ProductID"`
+	Time                 string `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
+	TotalPrincipal       *big.Int
+	StringTotalPrincipal string `db:"TotalPrincipal" json:"-"`
 }
 
 type SeedExchangeInput struct {
@@ -265,17 +282,20 @@ func CreateOrder() *Order {
 }
 
 func NewOrder(
-	productID string, userDID string, orderType string, paymentAddress string, amount float64, userAddress string) *Order {
+	productID string, userDID string, orderType string, paymentAddress string, amount *big.Int, userAddress string) *Order {
 	return &Order{
 		"",
 		productID,
 		userDID,
 		orderType,
 		1,
-		0,
-		0,
+		big.NewInt(0),
+		"0",
+		big.NewInt(0),
+		"0",
 		paymentAddress,
 		amount,
+		amount.String(),
 		userAddress,
 	}
 }
@@ -292,15 +312,17 @@ func CreateTXInfo() *TXInfo {
 	return &TXInfo{}
 }
 
-func NewTXInfo(orderID, txCurrencyType, txType, txHash string, principal, interest float64, userAddress, redeemableTime string) *TXInfo {
+func NewTXInfo(orderID, txCurrencyType, txType, txHash string, principal, interest *big.Int, userAddress, redeemableTime string) *TXInfo {
 	return &TXInfo{
 		"",
 		orderID,
 		txCurrencyType,
 		txType,
-		txHash,
+		&txHash,
 		principal,
+		principal.String(),
 		interest,
+		interest.String(),
 		userAddress,
 		"",
 		redeemableTime,
@@ -369,7 +391,7 @@ func CreateSubmitBuyinOutput() *SubmitBuyinOutput {
 	return &SubmitBuyinOutput{}
 }
 
-func NewSubmitBuyinOutput(productName string, amount float64, time, userAddress, txCurrencyType string) *SubmitBuyinOutput {
+func NewSubmitBuyinOutput(productName, amount, time, userAddress, txCurrencyType string) *SubmitBuyinOutput {
 	return &SubmitBuyinOutput{
 		productName,
 		amount,
@@ -395,7 +417,7 @@ func NewPrincipalUpdateList() []*PrincipalUpdate {
 	return []*PrincipalUpdate{}
 }
 
-func NewRedeemOrderOutput(productName string, amount float64, time, toAddress, txCurrencyType, txHash string) *RedeemOrderOuput {
+func NewRedeemOrderOutput(productName string, amount string, time, toAddress, txCurrencyType, txHash string) *RedeemOrderOuput {
 	return &RedeemOrderOuput{
 		productName,
 		amount,
@@ -441,4 +463,91 @@ func ConvertCredentialSubject(vc *foundationModels.VerifiableCredential) {
 	seedInfo.ID = subjectMap["id"].(string)
 	seedInfo.Amount = subjectMap["amount"].(float64)
 	vc.CredentialSubject = *seedInfo
+}
+
+func SetOrderBigFields(order *Order) error {
+	var success bool
+	order.AccumulatedInterest, success = big.NewInt(0).SetString(order.StringAccumulatedInterest, 10)
+	if !success {
+		return errval.ErrAccumulatedInterestNotNumber
+	}
+	order.TotalInterestGained, success = big.NewInt(0).SetString(order.StringTotalInterestGained, 10)
+	if !success {
+		return errval.ErrTotalInterestGainedNotNumber
+	}
+	order.Amount, success = big.NewInt(0).SetString(order.StringAmount, 10)
+	if !success {
+		return errval.ErrAmountNotNumber
+	}
+	return nil
+}
+
+func SetStakingProductBigFields(product *StakingProduct) error {
+	var success bool
+	product.TopUpLimit, success = new(big.Int).SetString(product.StringTopUpLimit, 10)
+	if !success {
+		return errval.ErrTopUpLimitNotNumber
+	}
+	product.BurnedInterest, success = new(big.Int).SetString(product.StringBurnedInterest, 10)
+	if !success {
+		return errval.ErrBurnedInterestNotNumber
+	}
+	return nil
+}
+
+func SetTXInfoBigFields(txinfo *TXInfo) error {
+	var success bool
+	txinfo.Principal, success = big.NewInt(0).SetString(txinfo.StringPrincipal, 10)
+	if !success {
+		return errval.ErrPrincipalNotNumber
+	}
+	txinfo.Interest, success = big.NewInt(0).SetString(txinfo.StringInterest, 10)
+	if !success {
+		return errval.ErrInterestNotNumber
+	}
+	return nil
+}
+
+func SetOrderInterestBigFields(interest *OrderInterest) error {
+	var success bool
+	interest.InterestGain, success = big.NewInt(0).SetString(interest.StringInterestGain, 10)
+	if !success {
+		return errval.ErrInterestGainNotNumber
+	}
+	interest.TotalInterestGain, success = big.NewInt(0).SetString(interest.StringTotalInterestGain, 10)
+	if !success {
+		return errval.ErrTotalInterestGainNotNumber
+	}
+	return nil
+}
+
+func SetOrderInterestInfoBigFields(info *OrderInterestInfo) error {
+	var success bool
+	info.AccumulatedInterest, success = big.NewInt(0).SetString(info.StringAccumulatedInterest, 10)
+	if !success {
+		return errval.ErrAccumulatedInterestNotNumber
+	}
+	info.TotalInterestGained, success = big.NewInt(0).SetString(info.StringTotalInterestGained, 10)
+	if !success {
+		return errval.ErrTotalInterestGainedNotNumber
+	}
+	return nil
+}
+
+func SetPrincipalUpdateBigFields(update *PrincipalUpdate) error {
+	var success bool
+	update.TotalPrincipal, success = big.NewInt(0).SetString(update.StringTotalPrincipal, 10)
+	if !success {
+		return errval.ErrTotalPrincipalNotNumber
+	}
+	return nil
+}
+
+func SetStakingRecordBigFields(record *StakingRecord) error {
+	var success bool
+	record.PrincipalAmount, success = big.NewInt(0).SetString(record.StringPrincipalAmount, 10)
+	if !success {
+		return errval.ErrAmountNotNumber
+	}
+	return nil
 }

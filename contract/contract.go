@@ -4,6 +4,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"math/big"
+
+	"github.com/metabloxStaking/comm/regutil"
+	"github.com/metabloxStaking/contract/tokenutil"
+
 	"github.com/MetaBloxIO/metablox-foundation-services/registry"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -11,13 +16,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/metabloxStaking/comm/regutil"
-	"github.com/metabloxStaking/contract/tokenutil"
 	"github.com/metabloxStaking/errval"
 	"github.com/metabloxStaking/models"
 	logger "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"math/big"
 )
 
 var (
@@ -132,7 +134,7 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 		return errors.New(value + " is not a correct amount")
 	}
 
-	result, _ := new(big.Float).SetFloat64(order.Amount).Int(nil)
+	result, _ := new(big.Float).SetInt(order.Amount).Int(nil)
 	if amount.Cmp(result) < 0 {
 		return errors.New(value + " is not enough")
 	}
@@ -150,12 +152,11 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 	return nil
 }
 
-func RedeemOrder(addressStr string, amountF float64) (*types.Transaction, error) {
+func RedeemOrder(addressStr string, amount *big.Int) (*types.Transaction, error) {
 	// verify eth address
 	if !regutil.IsETHAddress(addressStr) {
 		return nil, errval.ErrETHAddress
 	}
 	address := common.HexToAddress(addressStr)
-	amount := new(big.Int).SetUint64(uint64(amountF))
 	return tokenutil.Transfer(address, amount)
 }

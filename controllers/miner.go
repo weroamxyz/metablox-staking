@@ -54,7 +54,6 @@ func GetMinerList(c *gin.Context) ([]*models.MinerInfo, error) {
 		if err != nil {
 			return nil, err
 		}
-		ResponseSuccess(c, minerList)
 		return minerList, nil
 	}
 

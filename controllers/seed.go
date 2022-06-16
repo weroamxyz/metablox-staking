@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/metabloxStaking/contract/tokenutil"
+	"github.com/metabloxStaking/comm/regutil"
 
 	"github.com/MetaBloxIO/metablox-foundation-services/did"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/metabloxStaking/comm/regutil"
+	"github.com/metabloxStaking/contract/tokenutil"
 	"github.com/metabloxStaking/dao"
 
 	serviceModels "github.com/MetaBloxIO/metablox-foundation-services/models"

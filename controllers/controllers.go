@@ -39,7 +39,7 @@ func GetProductInfoByIDHandler(c *gin.Context) {
 	if err != nil {
 		product.CurrentAPY = product.DefaultAPY
 	} else {
-		product.CurrentAPY = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal)
+		product.CurrentAPY, _ = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal).Float64()
 	}
 	ResponseSuccess(c, product)
 }
@@ -55,7 +55,7 @@ func GetAllProductInfoHandler(c *gin.Context) {
 		if err != nil {
 			product.CurrentAPY = product.DefaultAPY
 		} else {
-			product.CurrentAPY = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal)
+			product.CurrentAPY, _ = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal).Float64()
 		}
 	}
 	ResponseSuccess(c, products)

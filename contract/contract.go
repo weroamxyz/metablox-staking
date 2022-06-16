@@ -29,7 +29,7 @@ var (
 	registryInstance *registry.Registry
 )
 
-const transferMethodName = "Transfer"
+const transferMethodName = "transfer"
 
 func Init() error {
 	var err error

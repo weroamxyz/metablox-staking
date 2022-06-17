@@ -53,8 +53,12 @@ func GetStakingRecords(c *gin.Context) ([]*models.StakingRecord, error) {
 			return nil, err
 		}
 		bigInterestGain := big.NewInt(0).Sub(interestInfo.AccumulatedInterest, interestInfo.TotalInterestGained)
-		record.InterestGain = bigInterestGain.String()
-		record.TotalAmount = big.NewInt(0).Add(bigInterestGain, record.PrincipalAmount).String()
+		convertedInterestGain := models.MinimumUnitToMBLX(bigInterestGain)
+		record.InterestGain = strconv.FormatFloat(convertedInterestGain, 'f', -1, 64)
+
+		bigTotalAmount := big.NewInt(0).Add(bigInterestGain, record.PrincipalAmount)
+		convertedTotalAmount := models.MinimumUnitToMBLX(bigTotalAmount)
+		record.TotalAmount = strconv.FormatFloat(convertedTotalAmount, 'f', -1, 64)
 	}
 	return records, nil
 }

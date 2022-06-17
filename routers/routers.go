@@ -3,11 +3,13 @@ package routers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/metabloxStaking/controllers"
+	"github.com/metabloxStaking/log"
 	"github.com/metabloxStaking/middleware"
 )
 
 func Setup() {
 	r := gin.New()
+	r.Use(gin.LoggerWithWriter(log.GetLogWriter()), gin.RecoveryWithWriter(log.GetLogWriter()))
 
 	didParamGroup := r.Group("/")
 	didQueryGroup := r.Group("/")

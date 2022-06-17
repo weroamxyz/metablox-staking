@@ -87,9 +87,9 @@ DROP TABLE IF EXISTS `StakingProducts`;
 CREATE TABLE `StakingProducts` (
                                    `ID` int NOT NULL AUTO_INCREMENT,
                                    `ProductName` varchar(100) NOT NULL,
-                                   `MinOrderValue` int NOT NULL,
+                                   `MinOrderValue` decimal(20) NOT NULL,
                                    `TopUpLimit` decimal(20) NOT NULL,
-                                   `MinRedeemValue` int NOT NULL,
+                                   `MinRedeemValue` decimal(20) NOT NULL,
                                    `LockUpPeriod` int NOT NULL,
                                    `DefaultAPY` float NOT NULL,
                                    `CreateDate` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),

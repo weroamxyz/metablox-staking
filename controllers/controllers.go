@@ -41,6 +41,7 @@ func GetProductInfoByIDHandler(c *gin.Context) {
 	} else {
 		product.CurrentAPY, _ = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal).Float64()
 	}
+	product.SetMBLXValues()
 	ResponseSuccess(c, product)
 }
 
@@ -57,6 +58,7 @@ func GetAllProductInfoHandler(c *gin.Context) {
 		} else {
 			product.CurrentAPY, _ = interest.CalculateCurrentAPY(product, principalUpdate.TotalPrincipal).Float64()
 		}
+		product.SetMBLXValues()
 	}
 	ResponseSuccess(c, products)
 }
@@ -87,6 +89,9 @@ func GetStakingRecordsHandler(c *gin.Context) {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
+	for _, record := range records {
+		record.SetMBLXValues()
+	}
 
 	ResponseSuccess(c, records)
 }
@@ -97,6 +102,9 @@ func GetTransactionsByOrderIDHandler(c *gin.Context) {
 	if err != nil {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
+	}
+	for _, tx := range transactions {
+		tx.SetMBLXValues()
 	}
 
 	ResponseSuccess(c, transactions)
@@ -110,6 +118,9 @@ func GetTransactionsByUserDIDHandler(c *gin.Context) {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
 	}
+	for _, tx := range transactions {
+		tx.SetMBLXValues()
+	}
 
 	ResponseSuccess(c, transactions)
 }
@@ -120,6 +131,9 @@ func GetOrderInterestHandler(c *gin.Context) {
 	if err != nil {
 		ResponseErrorWithMsg(c, CodeError, err.Error())
 		return
+	}
+	for _, tx := range transactions {
+		tx.SetMBLXValues()
 	}
 
 	ResponseSuccess(c, transactions)

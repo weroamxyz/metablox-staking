@@ -3,6 +3,7 @@ package controllers
 import (
 	"database/sql"
 	"math/big"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -54,7 +55,8 @@ func SubmitBuyin(c *gin.Context) (*models.SubmitBuyinOutput, error) {
 		return nil, err
 	}
 
-	output := models.NewSubmitBuyinOutput(product.ProductName, order.Amount.String(), date, txInfo.UserAddress, txInfo.TXCurrencyType)
+	order.SetMBLXValues()
+	output := models.NewSubmitBuyinOutput(product.ProductName, strconv.FormatFloat(order.MBLXAmount, 'f', -1, 64), date, txInfo.UserAddress, txInfo.TXCurrencyType)
 
 	// record change in staking pool's total principal
 	newPrincipal := models.NewPrincipalUpdate()

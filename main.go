@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/metabloxStaking/log"
 
 	"github.com/metabloxStaking/contract/tokenutil"
 
@@ -22,6 +23,8 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+
+	log.Init()
 
 	err = contract.Init()
 	if err != nil {

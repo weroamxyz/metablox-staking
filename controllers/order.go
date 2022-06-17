@@ -42,10 +42,11 @@ func CreateOrder(c *gin.Context) (*models.OrderOutput, error) {
 		return nil, err
 	}
 
-	bigAmount, success := big.NewInt(0).SetString(input.Amount, 10)
-	if !success {
-		return nil, errval.ErrAmountNotNumber
+	floatAmount, err := strconv.ParseFloat(input.Amount, 64)
+	if err != nil {
+		return nil, err
 	}
+	bigAmount := models.MBLXToMinimumUnit(floatAmount)
 
 	if bigAmount.Cmp(big.NewInt(int64(product.MinOrderValue))) == -1 {
 		return nil, errval.ErrOrderAmountTooLow

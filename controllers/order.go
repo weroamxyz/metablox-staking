@@ -126,8 +126,9 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, err
 	}
 
+	convertedAmount := models.MinimumUnitToMBLX(amount)
 	time := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
-	output := models.NewRedeemOrderOutput(productName, amount.String(), time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
+	output := models.NewRedeemOrderOutput(productName, strconv.FormatFloat(convertedAmount, 'f', -1, 64), time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
 
 	// record change in staking pool's total principal
 	newPrincipal := models.NewPrincipalUpdate()
@@ -182,8 +183,9 @@ func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, err
 	}
 
+	convertedInterest := models.MinimumUnitToMBLX(currentInterest)
 	time := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
-	output := models.NewRedeemOrderOutput(productName, currentInterest.String(), time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
+	output := models.NewRedeemOrderOutput(productName, strconv.FormatFloat(convertedInterest, 'f', -1, 64), time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
 
 	err = dao.RedeemOrder(txInfo, interestInfo.AccumulatedInterest.String())
 	if err != nil {

@@ -1,3 +1,9 @@
+log:
+  name:  "log/log/staking.log"
+  level:  "debug"
+  count:  180
+  rotateTime:  86400
+  stdout:  true
 mysql:
   host: "127.0.0.1"
   port: 3306

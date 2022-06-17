@@ -32,7 +32,7 @@ func (logNew *Log) GetParameters() {
 
 	logName := viper.GetString("log.name")
 	if logName == "" {
-		logName = "boundaryPay.log"
+		logName = "staking.log"
 	}
 	logNew.name = logName
 

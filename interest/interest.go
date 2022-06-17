@@ -25,7 +25,7 @@ func calculatePeriodInterest(product *models.StakingProduct) *big.Float {
 
 func calculateMaxAPY(product *models.StakingProduct) *big.Float {
 	A := calculatePeriodInterest(product)
-	Z := big.NewFloat(float64(product.MinOrderValue))
+	Z := new(big.Float).SetInt(product.MinOrderValue)
 	N := float64(product.LockUpPeriod)
 	// result = (A / Z) * (360.0 / N)
 	result := A.Quo(A, Z)

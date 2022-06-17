@@ -48,7 +48,7 @@ func CreateOrder(c *gin.Context) (*models.OrderOutput, error) {
 	}
 	bigAmount := models.MBLXToMinimumUnit(floatAmount)
 
-	if bigAmount.Cmp(big.NewInt(int64(product.MinOrderValue))) == -1 {
+	if bigAmount.Cmp(product.MinOrderValue) == -1 {
 		return nil, errval.ErrOrderAmountTooLow
 	}
 	if big.NewInt(0).Add(totalPrincipal, bigAmount).Cmp(product.TopUpLimit) == 1 {

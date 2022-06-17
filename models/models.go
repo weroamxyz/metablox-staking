@@ -43,11 +43,15 @@ type Order struct {
 type StakingProduct struct {
 	ID                   string   `db:"ID" json:"id"`
 	ProductName          string   `db:"ProductName" json:"productName"`
-	MinOrderValue        int      `db:"MinOrderValue" json:"minOrderValue"`
+	MinOrderValue        *big.Int `json:"-"`
+	StringMinOrderValue  string   `db:"MinOrderValue" json:"-"`
+	MBLXMinOrderValue    float64  `json:"minOrderValue"`
 	TopUpLimit           *big.Int `json:"-"`
-	StringTopUpLimit     string   `db:"TopUpLimit"`
+	StringTopUpLimit     string   `db:"TopUpLimit" json:"-"`
 	MBLXTopUpLimit       float64  `json:"TopUpLimit"`
-	MinRedeemValue       int      `db:"MinRedeemValue" json:"minRedeemValue"`
+	MinRedeemValue       *big.Int `json:"-"`
+	StringMinRedeemValue string   `db:"MinRedeemValue" json:"-"`
+	MBLXMinRedeemValue   float64  `json:"minRedeemValue"`
 	LockUpPeriod         int      `db:"LockUpPeriod" json:"lockUpPeriod"`
 	DefaultAPY           float64  `db:"DefaultAPY" json:"-"`
 	CurrentAPY           float64  `json:"currentAPY" json:"-"`
@@ -55,7 +59,7 @@ type StakingProduct struct {
 	StartDate            string   `db:"StartDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
 	Term                 int      `db:"Term" json:"-"`
 	BurnedInterest       *big.Int `json:"-"`
-	StringBurnedInterest string   `db:"BurnedInterest"`
+	StringBurnedInterest string   `db:"BurnedInterest" json:"-"`
 	MBLXBurnedInterest   float64  `json:"BurnedInterest"`
 	NextProductID        *string  `db:"NextProductID" json:"-"`
 	PaymentAddress       string   `db:"PaymentAddress"`
@@ -97,7 +101,7 @@ type OrderInterest struct {
 	MBLXInterestGain        float64  `json:"InterestGain"`
 	TotalInterestGain       *big.Int `json:"-"`
 	StringTotalInterestGain string   `db:"TotalInterestGain" json:"-"`
-	MBLXTotalInterestGain   float64  `db:"TotalInterestGain"`
+	MBLXTotalInterestGain   float64  `json:"TotalInterestGain"`
 }
 
 type PaymentInfo struct {
@@ -470,19 +474,19 @@ func ConvertCredentialSubject(vc *foundationModels.VerifiableCredential) {
 }
 
 func SetOrderBigFields(order *Order) error {
-	f, _, err := big.ParseFloat(order.StringAmount, 10, 128, big.ToNearestEven)
+	f, _, err := big.ParseFloat(order.StringAmount, 10, 128, big.ToNearestAway)
 	if err != nil {
 		return errval.ErrAmountNotNumber
 	}
 	order.Amount, _ = f.Int(nil)
 
-	f, _, err = big.ParseFloat(order.StringAccumulatedInterest, 10, 128, big.ToNearestEven)
+	f, _, err = big.ParseFloat(order.StringAccumulatedInterest, 10, 128, big.ToNearestAway)
 	if err != nil {
 		return errval.ErrAccumulatedInterestNotNumber
 	}
 	order.AccumulatedInterest, _ = f.Int(nil)
 
-	f, _, err = big.ParseFloat(order.StringTotalInterestGained, 10, 128, big.ToNearestEven)
+	f, _, err = big.ParseFloat(order.StringTotalInterestGained, 10, 128, big.ToNearestAway)
 	if err != nil {
 		return errval.ErrTotalInterestGainedNotNumber
 	}
@@ -491,22 +495,34 @@ func SetOrderBigFields(order *Order) error {
 }
 
 func SetStakingProductBigFields(product *StakingProduct) error {
-	f, _, err := big.ParseFloat(product.StringTopUpLimit, 10, 128, big.ToNearestEven)
+	f, _, err := big.ParseFloat(product.StringTopUpLimit, 10, 128, big.ToNearestAway)
 	if err != nil {
 		return errval.ErrTopUpLimitNotNumber
 	}
 	product.TopUpLimit, _ = f.Int(nil)
 
-	f, _, err = big.ParseFloat(product.StringBurnedInterest, 10, 128, big.ToNearestEven)
+	f, _, err = big.ParseFloat(product.StringBurnedInterest, 10, 128, big.ToNearestAway)
 	if err != nil {
 		return errval.ErrBurnedInterestNotNumber
 	}
 	product.BurnedInterest, _ = f.Int(nil)
+
+	f, _, err = big.ParseFloat(product.StringMinOrderValue, 10, 128, big.ToNearestAway)
+	if err != nil {
+		return errval.ErrMinOrderValueNotNumber
+	}
+	product.MinOrderValue, _ = f.Int(nil)
+
+	f, _, err = big.ParseFloat(product.StringMinRedeemValue, 10, 128, big.ToNearestAway)
+	if err != nil {
+		return errval.ErrMinRedeemValueNotNumber
+	}
+	product.MinRedeemValue, _ = f.Int(nil)
 	return nil
 }
 
 func SetTXInfoBigFields(txinfo *TXInfo) error {
-	f, _, err := big.ParseFloat(txinfo.StringPrincipal, 10, 128, big.ToNearestEven)
+	f, _, err := big.ParseFloat(txinfo.StringPrincipal, 10, 128, big.ToNearestAway)
 	if err != nil {
 		return errval.ErrPrincipalNotNumber
 	}
@@ -527,7 +543,7 @@ func SetOrderInterestBigFields(interest *OrderInterest) error {
 	}
 	interest.InterestGain, _ = f.Int(nil)
 
-	f, _, err = big.ParseFloat(interest.StringTotalInterestGain, 10, 128, big.ToNearestEven)
+	f, _, err = big.ParseFloat(interest.StringTotalInterestGain, 10, 128, big.ToNearestAway)
 	if err != nil {
 		return errval.ErrTotalInterestGainNotNumber
 	}
@@ -536,13 +552,13 @@ func SetOrderInterestBigFields(interest *OrderInterest) error {
 }
 
 func SetOrderInterestInfoBigFields(info *OrderInterestInfo) error {
-	f, _, err := big.ParseFloat(info.StringAccumulatedInterest, 10, 128, big.ToNearestEven)
+	f, _, err := big.ParseFloat(info.StringAccumulatedInterest, 10, 128, big.ToNearestAway)
 	if err != nil {
 		return errval.ErrAccumulatedInterestNotNumber
 	}
 	info.AccumulatedInterest, _ = f.Int(nil)
 
-	f, _, err = big.ParseFloat(info.StringTotalInterestGained, 10, 128, big.ToNearestEven)
+	f, _, err = big.ParseFloat(info.StringTotalInterestGained, 10, 128, big.ToNearestAway)
 	if err != nil {
 		return errval.ErrTotalInterestGainedNotNumber
 	}
@@ -551,7 +567,7 @@ func SetOrderInterestInfoBigFields(info *OrderInterestInfo) error {
 }
 
 func SetPrincipalUpdateBigFields(update *PrincipalUpdate) error {
-	f, _, err := big.ParseFloat(update.StringTotalPrincipal, 10, 128, big.ToNearestEven)
+	f, _, err := big.ParseFloat(update.StringTotalPrincipal, 10, 128, big.ToNearestAway)
 	if err != nil {
 		return errval.ErrTotalPrincipalNotNumber
 	}
@@ -560,7 +576,7 @@ func SetPrincipalUpdateBigFields(update *PrincipalUpdate) error {
 }
 
 func SetStakingRecordBigFields(record *StakingRecord) error {
-	f, _, err := big.ParseFloat(record.StringPrincipalAmount, 10, 128, big.ToNearestEven)
+	f, _, err := big.ParseFloat(record.StringPrincipalAmount, 10, 128, big.ToNearestAway)
 	if err != nil {
 		return errval.ErrPrincipalNotNumber
 	}
@@ -577,6 +593,8 @@ func (order *Order) SetMBLXValues() {
 func (product *StakingProduct) SetMBLXValues() {
 	product.MBLXTopUpLimit = MinimumUnitToMBLX(product.TopUpLimit)
 	product.MBLXBurnedInterest = MinimumUnitToMBLX(product.BurnedInterest)
+	product.MBLXMinOrderValue = MinimumUnitToMBLX(product.MinOrderValue)
+	product.MBLXMinRedeemValue = MinimumUnitToMBLX(product.MinRedeemValue)
 }
 
 func (info *TXInfo) SetMBLXValues() {

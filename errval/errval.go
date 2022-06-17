@@ -45,4 +45,6 @@ var (
 	ErrTotalPrincipalNotNumber      = errors.New("failed to parse TotalPrincipal as valid number")
 	ErrTopUpLimitNotNumber          = errors.New("failed to parse TopUpLimit as valid number")
 	ErrBurnedInterestNotNumber      = errors.New("failed to parse BurnedInterest as valid number")
+	ErrMinOrderValueNotNumber       = errors.New("failed to parse MinOrderValue as valid number")
+	ErrMinRedeemValueNotNumber      = errors.New("failed to parse MinRedeemValue as valid number")
 )

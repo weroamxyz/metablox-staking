@@ -3,6 +3,7 @@ package interest
 import (
 	"database/sql"
 	"github.com/jmoiron/sqlx"
+	"github.com/metabloxStaking/errval"
 	"math/big"
 	"sort"
 	"time"
@@ -128,6 +129,9 @@ func updateOrderInterest(orderID string, product *models.StakingProduct, princip
 }
 
 func calculateOrderInterest(orderID string, orderPrincipal *big.Int, product *models.StakingProduct, when time.Time, totalPrincipal *big.Int) (*models.OrderInterest, error) {
+	if totalPrincipal.Cmp(big.NewInt(0)) == 0 {
+		return nil, errval.ErrZeroTotalPrincipal
+	}
 	CAPY := CalculateCurrentAPY(product, totalPrincipal)
 	// interestGain = (interest.APY / (360.0 / N)) * principal * (1 / (N * 24))
 	N := float64(product.LockUpPeriod)

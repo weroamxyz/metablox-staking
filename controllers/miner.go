@@ -10,7 +10,9 @@ import (
 	"github.com/metabloxStaking/models"
 )
 
-func GetClosestMiner(latitude, longitude string) (*models.MinerInfo, error) {
+const acceptableDistance = 30
+
+func GetNearbyMiners(latitude, longitude string) ([]*models.MinerInfo, error) {
 	minerList, err := GetAllMiners()
 	if err != nil {
 		return nil, err
@@ -26,8 +28,7 @@ func GetClosestMiner(latitude, longitude string) (*models.MinerInfo, error) {
 		return nil, err
 	}
 
-	closestMiner := models.CreateMinerInfo()
-	closestDistance := math.Inf(1)
+	var nearbyMiners []*models.MinerInfo
 
 	for _, miner := range minerList {
 		if miner.Longitude == nil || miner.Latitude == nil {
@@ -36,12 +37,11 @@ func GetClosestMiner(latitude, longitude string) (*models.MinerInfo, error) {
 		longDistance := floatLong - *miner.Longitude
 		latDistance := floatLat - *miner.Latitude
 		totalDistance := math.Sqrt(math.Pow(longDistance, 2) + math.Pow(latDistance, 2))
-		if totalDistance < closestDistance {
-			closestDistance = totalDistance
-			closestMiner = miner
+		if totalDistance < acceptableDistance {
+			nearbyMiners = append(nearbyMiners, miner)
 		}
 	}
-	return closestMiner, nil
+	return nearbyMiners, nil
 }
 
 func GetMinerList(c *gin.Context) ([]*models.MinerInfo, error) {
@@ -62,12 +62,12 @@ func GetMinerList(c *gin.Context) ([]*models.MinerInfo, error) {
 		return nil, err
 	}
 
-	closestMiner, err := GetClosestMiner(latitude, longitude)
+	nearbyMiners, err := GetNearbyMiners(latitude, longitude)
 	if err != nil {
 		return nil, err
 	}
 
-	minerList = append(minerList, closestMiner)
+	minerList = append(minerList, nearbyMiners...)
 
 	return minerList, nil
 }

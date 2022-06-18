@@ -125,6 +125,8 @@ type MinerInfo struct {
 	DID          string   `db:"DID"`
 	Host         string   `db:"Host"`
 	IsVirtual    bool     `db:"IsVirtual"`
+	Password     string   `db:"Password"`
+	DeviceName   string   `db:"DeviceName"`
 }
 
 type SeedExchange struct {

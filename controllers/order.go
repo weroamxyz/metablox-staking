@@ -120,7 +120,7 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 	txData, _ := tx.MarshalJSON()
 	logger.Infof("tx %s send,detail:%s", tx.Hash().Hex(), string(txData))
 
-	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeOrderClosure, tx.Hash().Hex(), big.NewInt(0), big.NewInt(0), userAddress, redeemableDate)
+	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeOrderClosure, tx.Hash().Hex(), order.Amount, currentInterest, userAddress, redeemableDate)
 
 	err = dao.RedeemOrder(txInfo, interestInfo.AccumulatedInterest.String())
 	if err != nil {
@@ -177,7 +177,7 @@ func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
 	}
 	txData, _ := tx.MarshalJSON()
 	logger.Infof("tx %s send,detail:%s"+tx.Hash().Hex(), string(txData))
-	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeInterestOnly, tx.Hash().Hex(), big.NewInt(0), big.NewInt(0), userAddress, time.Now().Format("2006-01-02 15:04:05.000"))
+	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeInterestOnly, tx.Hash().Hex(), big.NewInt(0), currentInterest, userAddress, time.Now().Format("2006-01-02 15:04:05.000"))
 
 	productName, err := dao.GetProductNameForOrder(orderID)
 	if err != nil {
@@ -188,7 +188,7 @@ func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
 	time := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
 	output := models.NewRedeemOrderOutput(productName, strconv.FormatFloat(convertedInterest, 'f', -1, 64), time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
 
-	err = dao.RedeemOrder(txInfo, interestInfo.AccumulatedInterest.String())
+	err = dao.RedeemInterest(txInfo)
 	if err != nil {
 		return nil, err
 	}

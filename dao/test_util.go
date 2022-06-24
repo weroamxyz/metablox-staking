@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"strconv"
 
 	"github.com/go-playground/validator/v10"
@@ -88,14 +87,12 @@ func BuyinTestOrderWithDate(order *models.Order, date string) (string, error) {
 
 	// create corresponding txinfo
 	txInfo := &models.TXInfo{
-		OrderID:         strconv.Itoa(id),
-		TXType:          models.TxTypeBuyIn,
-		TXHash:          "",
-		Principal:       order.Amount,
-		StringPrincipal: order.Amount.String(),
-		StringInterest:  "0",
-		CreateDate:      date,
-		RedeemableTime:  date,
+		OrderID:        strconv.Itoa(id),
+		TXType:         models.TxTypeBuyIn,
+		TXHash:         "",
+		Principal:      order.Amount,
+		CreateDate:     date,
+		RedeemableTime: date,
 	}
 	err = SubmitBuyin(txInfo)
 	if err != nil {
@@ -111,7 +108,7 @@ func BuyinTestOrderWithDate(order *models.Order, date string) (string, error) {
 	newPrincipal := models.NewPrincipalUpdate()
 	oldPrincipal, err := GetLatestPrincipalUpdate(order.ProductID)
 	if err == nil {
-		newPrincipal.TotalPrincipal = big.NewInt(0).Add(oldPrincipal.TotalPrincipal, txInfo.Principal)
+		newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal.Add(txInfo.Principal)
 	} else if err == sql.ErrNoRows {
 		newPrincipal.TotalPrincipal = txInfo.Principal
 	} else {
@@ -138,14 +135,12 @@ func RedeemTestOrderWithDate(orderID string, date string) error {
 
 	// create corresponding txinfo
 	txInfo := &models.TXInfo{
-		OrderID:         orderID,
-		TXType:          models.TxTypeOrderClosure,
-		TXHash:          "",
-		Principal:       order.Amount,
-		StringPrincipal: order.Amount.String(),
-		StringInterest:  "0",
-		CreateDate:      date,
-		RedeemableTime:  date,
+		OrderID:        orderID,
+		TXType:         models.TxTypeOrderClosure,
+		TXHash:         "",
+		Principal:      order.Amount,
+		CreateDate:     date,
+		RedeemableTime: date,
 	}
 
 	err = RedeemOrder(txInfo, interestInfo.AccumulatedInterest.String())
@@ -164,7 +159,7 @@ func RedeemTestOrderWithDate(orderID string, date string) error {
 	if err != nil {
 		return err
 	}
-	newPrincipal.TotalPrincipal = big.NewInt(0).Sub(oldPrincipal.TotalPrincipal, order.Amount)
+	newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal.Sub(order.Amount)
 
 	err = insertPrincipalUpdateWithTime(order.ProductID, newPrincipal.TotalPrincipal.String(), date)
 	if err != nil {

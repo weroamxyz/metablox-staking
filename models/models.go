@@ -1,12 +1,10 @@
 package models
 
 import (
-	"math"
-	"math/big"
 	"time"
 
 	foundationModels "github.com/MetaBloxIO/metablox-foundation-services/models"
-	"github.com/metabloxStaking/errval"
+	"github.com/shopspring/decimal"
 )
 
 const TxTypeBuyIn = "BuyIn"
@@ -22,50 +20,43 @@ const CurrencyTypeMBLX = "MBLX"
 const MinimumUnitsPerMBLX = 1000000
 
 type Order struct {
-	OrderID                   string   `db:"OrderID"`
-	ProductID                 string   `db:"ProductID"`
-	UserDID                   string   `db:"UserDID"`
-	Type                      string   `db:"Type" validate:"required,oneof=Pending Holding Complete"`
-	Term                      int      `db:"Term"`
-	AccumulatedInterest       *big.Int `json:"-"`
-	StringAccumulatedInterest string   `db:"AccumulatedInterest" json:"-"`
-	MBLXAccumulatedInterest   float64  `json:"AccumulatedInterest"`
-	TotalInterestGained       *big.Int `json:"-"`
-	StringTotalInterestGained string   `db:"TotalInterestGained" json:"-"`
-	MBLXTotalInterestGained   float64  `json:"TotalInterestGained"`
-	PaymentAddress            string   `db:"PaymentAddress"`
-	Amount                    *big.Int `json:"-"`
-	StringAmount              string   `db:"Amount" json:"-"`
-	MBLXAmount                float64  `json:"Amount"`
-	UserAddress               string   `db:"UserAddress"`
+	OrderID                 string          `db:"OrderID"`
+	ProductID               string          `db:"ProductID"`
+	UserDID                 string          `db:"UserDID"`
+	Type                    string          `db:"Type" validate:"required,oneof=Pending Holding Complete"`
+	Term                    int             `db:"Term"`
+	AccumulatedInterest     decimal.Decimal `db:"AccumulatedInterest" json:"-"`
+	MBLXAccumulatedInterest float64         `json:"AccumulatedInterest"`
+	TotalInterestGained     decimal.Decimal `db:"TotalInterestGained" json:"-"`
+	MBLXTotalInterestGained float64         `json:"TotalInterestGained"`
+	PaymentAddress          string          `db:"PaymentAddress"`
+	Amount                  decimal.Decimal `db:"Amount" json:"-"`
+	MBLXAmount              float64         `json:"Amount"`
+	UserAddress             string          `db:"UserAddress"`
 }
 
 type StakingProduct struct {
-	ID                   string   `db:"ID" json:"id"`
-	ProductName          string   `db:"ProductName" json:"productName"`
-	MinOrderValue        *big.Int `json:"-"`
-	StringMinOrderValue  string   `db:"MinOrderValue" json:"-"`
-	MBLXMinOrderValue    float64  `json:"minOrderValue"`
-	TopUpLimit           *big.Int `json:"-"`
-	StringTopUpLimit     string   `db:"TopUpLimit" json:"-"`
-	MBLXTopUpLimit       float64  `json:"TopUpLimit"`
-	MinRedeemValue       *big.Int `json:"-"`
-	StringMinRedeemValue string   `db:"MinRedeemValue" json:"-"`
-	MBLXMinRedeemValue   float64  `json:"minRedeemValue"`
-	LockUpPeriod         int      `db:"LockUpPeriod" json:"lockUpPeriod"`
-	DefaultAPY           float64  `db:"DefaultAPY" json:"-"`
-	CurrentAPY           float64  `json:"currentAPY" json:"-"`
-	CreateDate           string   `db:"CreateDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
-	StartDate            string   `db:"StartDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
-	Term                 int      `db:"Term" json:"-"`
-	BurnedInterest       *big.Int `json:"-"`
-	StringBurnedInterest string   `db:"BurnedInterest" json:"-"`
-	MBLXBurnedInterest   float64  `json:"BurnedInterest"`
-	NextProductID        *string  `db:"NextProductID" json:"-"`
-	PaymentAddress       string   `db:"PaymentAddress"`
-	CurrencyType         string   `db:"CurrencyType" json:"-"`
-	Network              string   `db:"Network" json:"-"`
-	Status               bool     `db:"Status" json:"status"`
+	ID                 string          `db:"ID" json:"id"`
+	ProductName        string          `db:"ProductName" json:"productName"`
+	MinOrderValue      decimal.Decimal `db:"MinOrderValue" json:"-"`
+	MBLXMinOrderValue  float64         `json:"minOrderValue"`
+	TopUpLimit         decimal.Decimal `db:"TopUpLimit" json:"-"`
+	MBLXTopUpLimit     float64         `json:"TopUpLimit"`
+	MinRedeemValue     decimal.Decimal `db:"MinRedeemValue" json:"-"`
+	MBLXMinRedeemValue float64         `json:"minRedeemValue"`
+	LockUpPeriod       int             `db:"LockUpPeriod" json:"lockUpPeriod"`
+	DefaultAPY         float64         `db:"DefaultAPY" json:"-"`
+	CurrentAPY         float64         `json:"currentAPY" json:"-"`
+	CreateDate         string          `db:"CreateDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
+	StartDate          string          `db:"StartDate" json:"-" validate:"required,datetime=2006-01-02 15:04:05"`
+	Term               int             `db:"Term" json:"-"`
+	BurnedInterest     decimal.Decimal `db:"BurnedInterest" json:"-"`
+	MBLXBurnedInterest float64         `json:"BurnedInterest"`
+	NextProductID      *string         `db:"NextProductID" json:"-"`
+	PaymentAddress     string          `db:"PaymentAddress"`
+	CurrencyType       string          `db:"CurrencyType" json:"-"`
+	Network            string          `db:"Network" json:"-"`
+	Status             bool            `db:"Status" json:"status"`
 }
 
 type User struct {
@@ -75,33 +66,29 @@ type User struct {
 }
 
 type TXInfo struct {
-	PaymentNo       string   `db:"PaymentNo"`
-	OrderID         string   `db:"OrderID"`
-	TXCurrencyType  string   `db:"TXCurrencyType"`
-	TXType          string   `db:"TXType" validate:"required,oneof=BuyIn InterestOnly OrderClosure"`
-	TXHash          string   `db:"TXHash"`
-	Principal       *big.Int `json:"-"`
-	StringPrincipal string   `db:"Principal" json:"-"`
-	MBLXPrincipal   float64  `json:"Principal"`
-	Interest        *big.Int `json:"-"`
-	StringInterest  string   `db:"Interest" json:"-"`
-	MBLXInterest    float64  `json:"Interest"`
-	UserAddress     string   `db:"UserAddress"`
-	CreateDate      string   `db:"CreateDate" validate:"omitempty,datetime=2006-01-02 15:04:05"`
-	RedeemableTime  string   `db:"RedeemableTime" validate:"required,datetime=2006-01-02 15:04:05"`
+	PaymentNo      string          `db:"PaymentNo"`
+	OrderID        string          `db:"OrderID"`
+	TXCurrencyType string          `db:"TXCurrencyType"`
+	TXType         string          `db:"TXType" validate:"required,oneof=BuyIn InterestOnly OrderClosure"`
+	TXHash         string          `db:"TXHash"`
+	Principal      decimal.Decimal `db:"Principal" json:"-"`
+	MBLXPrincipal  float64         `json:"Principal"`
+	Interest       decimal.Decimal `db:"Interest" json:"-"`
+	MBLXInterest   float64         `json:"Interest"`
+	UserAddress    string          `db:"UserAddress"`
+	CreateDate     string          `db:"CreateDate" validate:"omitempty,datetime=2006-01-02 15:04:05"`
+	RedeemableTime string          `db:"RedeemableTime" validate:"required,datetime=2006-01-02 15:04:05"`
 }
 
 type OrderInterest struct {
-	ID                      string   `db:"ID"`
-	OrderID                 string   `db:"OrderID"`
-	Time                    string   `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
-	APY                     float64  `db:"APY"`
-	InterestGain            *big.Int `json:"-"`
-	StringInterestGain      string   `db:"InterestGain" json:"-"`
-	MBLXInterestGain        float64  `json:"InterestGain"`
-	TotalInterestGain       *big.Int `json:"-"`
-	StringTotalInterestGain string   `db:"TotalInterestGain" json:"-"`
-	MBLXTotalInterestGain   float64  `json:"TotalInterestGain"`
+	ID                    string          `db:"ID"`
+	OrderID               string          `db:"OrderID"`
+	Time                  string          `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
+	APY                   float64         `db:"APY"`
+	InterestGain          decimal.Decimal `db:"InterestGain" json:"-"`
+	MBLXInterestGain      float64         `json:"InterestGain"`
+	TotalInterestGain     decimal.Decimal `db:"TotalInterestGain" json:"-"`
+	MBLXTotalInterestGain float64         `json:"TotalInterestGain"`
 }
 
 type PaymentInfo struct {
@@ -139,19 +126,18 @@ type SeedExchange struct {
 }
 
 type StakingRecord struct {
-	OrderID               string   `db:"OrderID"`
-	ProductID             string   `db:"ProductID"`
-	OrderStatus           string   `db:"Type"`
-	Term                  *int     `db:"Term"`
-	PurchaseTime          string   `db:"CreateDate"`
-	PrincipalAmount       *big.Int `json:"-"`
-	StringPrincipalAmount string   `db:"Amount" json:"-"`
-	MBLXPrincipalAmount   float64  `json:"PrincipalAmount"`
-	TXCurrencyType        string   `db:"TXCurrencyType"`
-	InterestGain          string
-	TotalAmount           string
-	RedeemableTime        string `db:"RedeemableTime"`
-	IsInClosureWindow     bool
+	OrderID             string          `db:"OrderID"`
+	ProductID           string          `db:"ProductID"`
+	OrderStatus         string          `db:"Type"`
+	Term                *int            `db:"Term"`
+	PurchaseTime        string          `db:"CreateDate"`
+	PrincipalAmount     decimal.Decimal `db:"Amount" json:"-"`
+	MBLXPrincipalAmount float64         `json:"PrincipalAmount"`
+	TXCurrencyType      string          `db:"TXCurrencyType"`
+	InterestGain        string
+	TotalAmount         string
+	RedeemableTime      string `db:"RedeemableTime"`
+	IsInClosureWindow   bool
 }
 
 type SeedInfo struct {
@@ -160,12 +146,10 @@ type SeedInfo struct {
 }
 
 type OrderInterestInfo struct {
-	AccumulatedInterest       *big.Int `json:"-"`
-	StringAccumulatedInterest string   `db:"AccumulatedInterest" json:"-"`
-	MBLXAccumulatedInterest   float64  `json:"AccumulatedInterest"`
-	TotalInterestGained       *big.Int `json:"-"`
-	StringTotalInterestGained string   `db:"TotalInterestGained" json:"-"`
-	MBLXTotalInterestGained   float64  `json:"TotalInterestGained"`
+	AccumulatedInterest     decimal.Decimal `db:"AccumulatedInterest" json:"-"`
+	MBLXAccumulatedInterest float64         `json:"AccumulatedInterest"`
+	TotalInterestGained     decimal.Decimal `db:"TotalInterestGained" json:"-"`
+	MBLXTotalInterestGained float64         `json:"TotalInterestGained"`
 }
 
 type OrderInput struct {
@@ -203,12 +187,11 @@ type RedeemOrderOuput struct {
 }
 
 type PrincipalUpdate struct {
-	ID                   string   `db:"ID"`
-	ProductID            string   `db:"ProductID"`
-	Time                 string   `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
-	TotalPrincipal       *big.Int `json:"-"`
-	StringTotalPrincipal string   `db:"TotalPrincipal" json:"-"`
-	MBLXTotalPrincipal   float64  `json:"TotalPrincipal"`
+	ID                 string          `db:"ID"`
+	ProductID          string          `db:"ProductID"`
+	Time               string          `db:"Time" validate:"required,datetime=2006-01-02 15:04:05"`
+	TotalPrincipal     decimal.Decimal `db:"TotalPrincipal" json:"-"`
+	MBLXTotalPrincipal float64         `json:"TotalPrincipal"`
 }
 
 type SeedExchangeInput struct {
@@ -291,22 +274,19 @@ func CreateOrder() *Order {
 }
 
 func NewOrder(
-	productID string, userDID string, orderType string, paymentAddress string, amount *big.Int, userAddress string) *Order {
+	productID string, userDID string, orderType string, paymentAddress string, amount decimal.Decimal, userAddress string) *Order {
 	return &Order{
 		"",
 		productID,
 		userDID,
 		orderType,
 		1,
-		big.NewInt(0),
-		"0",
+		decimal.NewFromInt(0),
 		0,
-		big.NewInt(0),
-		"0",
+		decimal.NewFromInt(0),
 		0,
 		paymentAddress,
 		amount,
-		amount.String(),
 		MinimumUnitToMBLX(amount),
 		userAddress,
 	}
@@ -324,7 +304,7 @@ func CreateTXInfo() *TXInfo {
 	return &TXInfo{}
 }
 
-func NewTXInfo(orderID, txCurrencyType, txType, txHash string, principal, interest *big.Int, userAddress, redeemableTime string) *TXInfo {
+func NewTXInfo(orderID, txCurrencyType, txType, txHash string, principal, interest decimal.Decimal, userAddress, redeemableTime string) *TXInfo {
 	return &TXInfo{
 		"",
 		orderID,
@@ -332,10 +312,8 @@ func NewTXInfo(orderID, txCurrencyType, txType, txHash string, principal, intere
 		txType,
 		txHash,
 		principal,
-		principal.String(),
 		MinimumUnitToMBLX(principal),
 		interest,
-		interest.String(),
 		MinimumUnitToMBLX(interest),
 		userAddress,
 		"",
@@ -475,117 +453,6 @@ func ConvertCredentialSubject(vc *foundationModels.VerifiableCredential) {
 	vc.CredentialSubject = *seedInfo
 }
 
-func SetOrderBigFields(order *Order) error {
-	f, _, err := big.ParseFloat(order.StringAmount, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrAmountNotNumber
-	}
-	order.Amount, _ = f.Int(nil)
-
-	f, _, err = big.ParseFloat(order.StringAccumulatedInterest, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrAccumulatedInterestNotNumber
-	}
-	order.AccumulatedInterest, _ = f.Int(nil)
-
-	f, _, err = big.ParseFloat(order.StringTotalInterestGained, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrTotalInterestGainedNotNumber
-	}
-	order.TotalInterestGained, _ = f.Int(nil)
-	return nil
-}
-
-func SetStakingProductBigFields(product *StakingProduct) error {
-	f, _, err := big.ParseFloat(product.StringTopUpLimit, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrTopUpLimitNotNumber
-	}
-	product.TopUpLimit, _ = f.Int(nil)
-
-	f, _, err = big.ParseFloat(product.StringBurnedInterest, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrBurnedInterestNotNumber
-	}
-	product.BurnedInterest, _ = f.Int(nil)
-
-	f, _, err = big.ParseFloat(product.StringMinOrderValue, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrMinOrderValueNotNumber
-	}
-	product.MinOrderValue, _ = f.Int(nil)
-
-	f, _, err = big.ParseFloat(product.StringMinRedeemValue, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrMinRedeemValueNotNumber
-	}
-	product.MinRedeemValue, _ = f.Int(nil)
-	return nil
-}
-
-func SetTXInfoBigFields(txinfo *TXInfo) error {
-	f, _, err := big.ParseFloat(txinfo.StringPrincipal, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrPrincipalNotNumber
-	}
-	txinfo.Principal, _ = f.Int(nil)
-
-	f, _, err = big.ParseFloat(txinfo.StringInterest, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrInterestNotNumber
-	}
-	txinfo.Interest, _ = f.Int(nil)
-	return nil
-}
-
-func SetOrderInterestBigFields(interest *OrderInterest) error {
-	f, _, err := big.ParseFloat(interest.StringInterestGain, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrInterestGainNotNumber
-	}
-	interest.InterestGain, _ = f.Int(nil)
-
-	f, _, err = big.ParseFloat(interest.StringTotalInterestGain, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrTotalInterestGainNotNumber
-	}
-	interest.TotalInterestGain, _ = f.Int(nil)
-	return nil
-}
-
-func SetOrderInterestInfoBigFields(info *OrderInterestInfo) error {
-	f, _, err := big.ParseFloat(info.StringAccumulatedInterest, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrAccumulatedInterestNotNumber
-	}
-	info.AccumulatedInterest, _ = f.Int(nil)
-
-	f, _, err = big.ParseFloat(info.StringTotalInterestGained, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrTotalInterestGainedNotNumber
-	}
-	info.TotalInterestGained, _ = f.Int(nil)
-	return nil
-}
-
-func SetPrincipalUpdateBigFields(update *PrincipalUpdate) error {
-	f, _, err := big.ParseFloat(update.StringTotalPrincipal, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrTotalPrincipalNotNumber
-	}
-	update.TotalPrincipal, _ = f.Int(nil)
-	return nil
-}
-
-func SetStakingRecordBigFields(record *StakingRecord) error {
-	f, _, err := big.ParseFloat(record.StringPrincipalAmount, 10, 128, big.ToNearestAway)
-	if err != nil {
-		return errval.ErrPrincipalNotNumber
-	}
-	record.PrincipalAmount, _ = f.Int(nil)
-	return nil
-}
-
 func (order *Order) SetMBLXValues() {
 	order.MBLXAccumulatedInterest = MinimumUnitToMBLX(order.AccumulatedInterest)
 	order.MBLXAmount = MinimumUnitToMBLX(order.Amount)
@@ -622,13 +489,11 @@ func (principal *PrincipalUpdate) SetMBLXValues() {
 	principal.MBLXTotalPrincipal = MinimumUnitToMBLX(principal.TotalPrincipal)
 }
 
-func MinimumUnitToMBLX(amount *big.Int) float64 {
-	convertedAmount := new(big.Float).SetInt(amount)
-	convertedAmount = convertedAmount.Quo(convertedAmount, big.NewFloat(MinimumUnitsPerMBLX))
-	floatAmount, _ := convertedAmount.Float64()
+func MinimumUnitToMBLX(amount decimal.Decimal) float64 {
+	floatAmount, _ := amount.Div(decimal.NewFromInt(MinimumUnitsPerMBLX)).Float64()
 	return floatAmount
 }
 
-func MBLXToMinimumUnit(amount float64) *big.Int {
-	return new(big.Int).SetInt64(int64(math.Round(amount * MinimumUnitsPerMBLX)))
+func MBLXToMinimumUnit(amount float64) decimal.Decimal {
+	return decimal.NewFromFloat(amount).Mul(decimal.NewFromInt(MinimumUnitsPerMBLX))
 }

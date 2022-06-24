@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"github.com/shopspring/decimal"
 	"math/big"
 
 	"github.com/metabloxStaking/comm/regutil"
@@ -131,13 +132,12 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 		return errval.ErrContractParam
 	}
 
-	amount, ok := new(big.Int).SetString(value, 0)
-	if !ok {
+	amount, err := decimal.NewFromString(value)
+	if err != nil {
 		return errors.New(value + " is not a correct amount")
 	}
 
-	result, _ := new(big.Float).SetInt(order.Amount).Int(nil)
-	if amount.Cmp(result) < 0 {
+	if amount.Cmp(order.Amount) < 0 {
 		return errors.New(value + " is not enough")
 	}
 
@@ -154,11 +154,11 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 	return nil
 }
 
-func RedeemOrder(addressStr string, amount *big.Int) (*types.Transaction, error) {
+func RedeemOrder(addressStr string, amount decimal.Decimal) (*types.Transaction, error) {
 	// verify eth address
 	if !regutil.IsETHAddress(addressStr) {
 		return nil, errval.ErrETHAddress
 	}
 	address := common.HexToAddress(addressStr)
-	return tokenutil.Transfer(address, amount)
+	return tokenutil.Transfer(address, amount.BigInt())
 }

@@ -44,7 +44,7 @@ func TestCalculateCurrentAPY(t *testing.T) {
 			lockUpPeriod:   180,
 			defaultAPY:     0.2,
 			totalPrincipal: decimal.NewFromInt(900000000),
-			expected:       "111.1111111",
+			expected:       "111.1111111111111112",
 		},
 		{
 			name:           "total principal 1500",
@@ -52,7 +52,7 @@ func TestCalculateCurrentAPY(t *testing.T) {
 			lockUpPeriod:   180,
 			defaultAPY:     0.2,
 			totalPrincipal: decimal.NewFromInt(1500000000),
-			expected:       "66.66666667",
+			expected:       "66.6666666666666666",
 		},
 	}
 	for _, tt := range tests {
@@ -127,7 +127,7 @@ func TestUpdateOrderInterest(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 10, len(result))
 	assert.Equal(t, "11574074", result[9].InterestGain.String())
-	assert.Equal(t, "115740740", result[9].TotalInterestGain.String())
+	assert.Equal(t, "115740741", result[9].TotalInterestGain.String())
 }
 
 func TestOrderInterest_MultipleUsers(t *testing.T) {

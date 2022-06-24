@@ -208,7 +208,7 @@ func UpdateAllOrderInterest(currentTime time.Time) {
 				logger.Warn(err)
 				continue
 			}
-			err = dao.UpdateProductStatus(product.ID, false)
+			err = dao.DisableProduct(product.ID)
 			if err != nil {
 				logger.Warn(err)
 			}

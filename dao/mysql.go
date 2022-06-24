@@ -522,9 +522,9 @@ func GetProductNameForOrder(id string) (string, error) {
 	return name, nil
 }
 
-func UpdateProductStatus(id string, status bool) error {
-	sqlStr := `update StakingProducts set Status = ? where ID = ?`
-	_, err := SqlDB.Exec(sqlStr, status, id)
+func DisableProduct(id string) error {
+	sqlStr := `update StakingProducts set Status = 0 where ID = ?`
+	_, err := SqlDB.Exec(sqlStr, id)
 	return err
 }
 

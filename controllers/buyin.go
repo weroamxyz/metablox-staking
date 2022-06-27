@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"database/sql"
-	"math/big"
+	"github.com/shopspring/decimal"
 	"strconv"
 	"time"
 
@@ -43,7 +43,7 @@ func SubmitBuyin(c *gin.Context) (*models.SubmitBuyinOutput, error) {
 		return nil, err
 	}
 
-	txInfo := models.NewTXInfo(input.OrderID, models.CurrencyTypeMBLX, models.TxTypeBuyIn, input.TxHash, order.Amount, big.NewInt(0), order.UserAddress, time.Now().AddDate(0, 0, 179).Truncate(24*time.Hour).Format("2006-01-02 15:04:05.000"))
+	txInfo := models.NewTXInfo(input.OrderID, models.CurrencyTypeMBLX, models.TxTypeBuyIn, input.TxHash, order.Amount, decimal.NewFromInt(0), order.UserAddress, time.Now().AddDate(0, 0, 179).Truncate(24*time.Hour).Format("2006-01-02 15:04:05.000"))
 
 	err = dao.SubmitBuyin(txInfo)
 	if err != nil {
@@ -62,7 +62,7 @@ func SubmitBuyin(c *gin.Context) (*models.SubmitBuyinOutput, error) {
 	newPrincipal := models.NewPrincipalUpdate()
 	oldPrincipal, err := dao.GetLatestPrincipalUpdate(product.ID)
 	if err == nil {
-		newPrincipal.TotalPrincipal = big.NewInt(0).Add(oldPrincipal.TotalPrincipal, txInfo.Principal)
+		newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal.Add(txInfo.Principal)
 	} else if err == sql.ErrNoRows {
 		newPrincipal.TotalPrincipal = txInfo.Principal
 	} else {

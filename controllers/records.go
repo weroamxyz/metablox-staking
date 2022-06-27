@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"math/big"
 	"strconv"
 	"time"
 
@@ -46,17 +45,17 @@ func GetStakingRecords(c *gin.Context) ([]*models.StakingRecord, error) {
 		record.RedeemableTime = strconv.FormatFloat(float64(redeemDate.UnixNano())/float64(time.Second), 'f', 3, 64)
 
 		timeElapsed := time.Since(redeemDate)
-		record.IsInClosureWindow = (0 < timeElapsed.Hours() && timeElapsed.Hours() < 24)
+		record.IsInClosureWindow = 0 < timeElapsed.Hours() && timeElapsed.Hours() < 24
 
 		interestInfo, err := dao.ExecuteGetInterestStmt(record.OrderID, stmt)
 		if err != nil {
 			return nil, err
 		}
-		bigInterestGain := big.NewInt(0).Sub(interestInfo.AccumulatedInterest, interestInfo.TotalInterestGained)
+		bigInterestGain := interestInfo.AccumulatedInterest.Sub(interestInfo.TotalInterestGained)
 		convertedInterestGain := models.MinimumUnitToMBLX(bigInterestGain)
 		record.InterestGain = strconv.FormatFloat(convertedInterestGain, 'f', -1, 64)
 
-		bigTotalAmount := big.NewInt(0).Add(bigInterestGain, record.PrincipalAmount)
+		bigTotalAmount := bigInterestGain.Add(record.PrincipalAmount)
 		convertedTotalAmount := models.MinimumUnitToMBLX(bigTotalAmount)
 		record.TotalAmount = strconv.FormatFloat(convertedTotalAmount, 'f', -1, 64)
 	}

@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"database/sql"
+	"github.com/shopspring/decimal"
 	"math"
-	"math/big"
 	"strconv"
 	"time"
 
@@ -29,7 +29,7 @@ func CreateOrder(c *gin.Context) (*models.OrderOutput, error) {
 		return nil, errval.ErrBadDID
 	}
 
-	totalPrincipal := big.NewInt(0)
+	totalPrincipal := decimal.NewFromInt(0)
 	principalUpdate, err := dao.GetLatestPrincipalUpdate(input.ProductID)
 	if err == nil {
 		totalPrincipal = principalUpdate.TotalPrincipal
@@ -51,7 +51,7 @@ func CreateOrder(c *gin.Context) (*models.OrderOutput, error) {
 	if bigAmount.Cmp(product.MinOrderValue) == -1 {
 		return nil, errval.ErrOrderAmountTooLow
 	}
-	if big.NewInt(0).Add(totalPrincipal, bigAmount).Cmp(product.TopUpLimit) == 1 {
+	if totalPrincipal.Add(bigAmount).Cmp(product.TopUpLimit) == 1 {
 		return nil, errval.ErrOrderExceedsTopUpLimit
 	}
 
@@ -110,9 +110,9 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, err
 	}
 
-	currentInterest := big.NewInt(0).Sub(interestInfo.AccumulatedInterest, interestInfo.TotalInterestGained)
+	currentInterest := interestInfo.AccumulatedInterest.Sub(interestInfo.TotalInterestGained)
 
-	amount := big.NewInt(0).Add(currentInterest, order.Amount)
+	amount := currentInterest.Add(order.Amount)
 	tx, err := contract.RedeemOrder(order.UserAddress, amount)
 	if err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 	txData, _ := tx.MarshalJSON()
 	logger.Infof("tx %s send,detail:%s", tx.Hash().Hex(), string(txData))
 
-	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeOrderClosure, tx.Hash().Hex(), big.NewInt(0), big.NewInt(0), userAddress, redeemableDate)
+	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeOrderClosure, tx.Hash().Hex(), order.Amount, currentInterest, userAddress, redeemableDate)
 
 	err = dao.RedeemOrder(txInfo, interestInfo.AccumulatedInterest.String())
 	if err != nil {
@@ -137,7 +137,7 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 	if err != nil {
 		return nil, err
 	}
-	newPrincipal.TotalPrincipal = big.NewInt(0).Sub(oldPrincipal.TotalPrincipal, order.Amount)
+	newPrincipal.TotalPrincipal = oldPrincipal.TotalPrincipal.Sub(order.Amount)
 
 	err = dao.InsertPrincipalUpdate(order.ProductID, newPrincipal.TotalPrincipal.String())
 	if err != nil {
@@ -155,7 +155,7 @@ func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, err
 	}
 
-	currentInterest := big.NewInt(0).Sub(interestInfo.AccumulatedInterest, interestInfo.TotalInterestGained)
+	currentInterest := interestInfo.AccumulatedInterest.Sub(interestInfo.TotalInterestGained)
 
 	valid, err := dao.CompareMinimumInterest(orderID, currentInterest.String())
 	if err != nil {
@@ -177,7 +177,7 @@ func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
 	}
 	txData, _ := tx.MarshalJSON()
 	logger.Infof("tx %s send,detail:%s"+tx.Hash().Hex(), string(txData))
-	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeInterestOnly, tx.Hash().Hex(), big.NewInt(0), big.NewInt(0), userAddress, time.Now().Format("2006-01-02 15:04:05.000"))
+	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeInterestOnly, tx.Hash().Hex(), decimal.NewFromInt(0), currentInterest, userAddress, time.Now().Format("2006-01-02 15:04:05.000"))
 
 	productName, err := dao.GetProductNameForOrder(orderID)
 	if err != nil {
@@ -188,7 +188,7 @@ func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
 	time := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
 	output := models.NewRedeemOrderOutput(productName, strconv.FormatFloat(convertedInterest, 'f', -1, 64), time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
 
-	err = dao.RedeemOrder(txInfo, interestInfo.AccumulatedInterest.String())
+	err = dao.RedeemInterest(txInfo)
 	if err != nil {
 		return nil, err
 	}

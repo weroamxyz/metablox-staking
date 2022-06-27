@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"github.com/jmoiron/sqlx"
 	"github.com/metabloxStaking/errval"
-	"math/big"
+	"github.com/shopspring/decimal"
 	"sort"
 	"time"
 
@@ -15,31 +15,27 @@ import (
 
 const TimeFormat = "2006-01-02 15:04:05"
 
-func calculatePeriodInterest(product *models.StakingProduct) *big.Float {
-	MB := new(big.Float).SetInt(product.TopUpLimit)
-	R := big.NewFloat(product.DefaultAPY)
+func calculatePeriodInterest(product *models.StakingProduct) decimal.Decimal {
+	MB := product.TopUpLimit
+	R := decimal.NewFromFloat(product.DefaultAPY)
 	N := float64(product.LockUpPeriod)
 	// result = (MB * R) / (360.0 / N)
-	result := MB.Mul(MB, R)
-	return result.Quo(result, big.NewFloat(360.0/N))
+	return MB.Mul(R).Div(decimal.NewFromFloat(360.0 / N))
 }
 
-func calculateMaxAPY(product *models.StakingProduct) *big.Float {
+func calculateMaxAPY(product *models.StakingProduct) decimal.Decimal {
 	A := calculatePeriodInterest(product)
-	Z := new(big.Float).SetInt(product.MinOrderValue)
+	Z := product.MinOrderValue
 	N := float64(product.LockUpPeriod)
 	// result = (A / Z) * (360.0 / N)
-	result := A.Quo(A, Z)
-	return result.Mul(result, big.NewFloat(360.0/N))
+	return A.Div(Z).Mul(decimal.NewFromFloat(360.0 / N))
 }
 
-func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal *big.Int) *big.Float {
+func CalculateCurrentAPY(product *models.StakingProduct, totalPrincipal decimal.Decimal) decimal.Decimal {
 	A := calculatePeriodInterest(product)
 	N := float64(product.LockUpPeriod)
-	TP := new(big.Float).SetInt(totalPrincipal)
 	// result = (A / TP) * (360.0 / N)
-	result := A.Quo(A, TP)
-	return result.Mul(result, big.NewFloat(360.0/N))
+	return A.Div(totalPrincipal).Mul(decimal.NewFromFloat(360.0 / N))
 }
 
 func updateOrderInterest(orderID string, product *models.StakingProduct, principalUpdates []*models.PrincipalUpdate,
@@ -53,7 +49,7 @@ func updateOrderInterest(orderID string, product *models.StakingProduct, princip
 
 	// latestTime will be set to either the latest orderInterest + 1 hour, or order date + 1 hour if there is no orderInterest yet
 	var latestTime time.Time
-	var latestSum *big.Int
+	var latestSum decimal.Decimal
 
 	latestInterest, err := dao.ExecuteGetMostRecentOrderInterestUntilDate(getRecentInterestStmt, orderID, targetTime.Format(TimeFormat))
 	if err == nil {
@@ -65,7 +61,7 @@ func updateOrderInterest(orderID string, product *models.StakingProduct, princip
 			return err
 		}
 		latestTime, _ = time.Parse(TimeFormat, orderCreateDateStr)
-		latestSum = big.NewInt(0)
+		latestSum = decimal.Decimal{}
 	} else {
 		return err
 	}
@@ -93,7 +89,7 @@ func updateOrderInterest(orderID string, product *models.StakingProduct, princip
 		}
 		// calculate numbers at given time
 		principalIndex := 0
-		totalPrincipal := big.NewInt(0)
+		totalPrincipal := decimal.NewFromInt(0)
 		principalIndex = findMostRecentPrincipalUpdate(principalUpdates, latestTime)
 		if principalIndex >= 0 {
 			totalPrincipal = principalUpdates[principalIndex].TotalPrincipal
@@ -103,16 +99,14 @@ func updateOrderInterest(orderID string, product *models.StakingProduct, princip
 			return err
 		}
 
-		interest.StringInterestGain = interest.InterestGain.String()
 		interestToAdd = append(interestToAdd, interest)
 		latestTime = latestTime.Add(time.Hour)
 	}
 
 	if len(interestToAdd) > 0 {
 		for _, interest := range interestToAdd {
-			latestSum.Add(latestSum, interest.InterestGain)
+			latestSum = latestSum.Add(interest.InterestGain)
 			interest.TotalInterestGain = latestSum
-			interest.StringTotalInterestGain = latestSum.String()
 		}
 
 		err = dao.InsertOrderInterestList(interestToAdd)
@@ -128,22 +122,22 @@ func updateOrderInterest(orderID string, product *models.StakingProduct, princip
 	return nil
 }
 
-func calculateOrderInterest(orderID string, orderPrincipal *big.Int, product *models.StakingProduct, when time.Time, totalPrincipal *big.Int) (*models.OrderInterest, error) {
-	if totalPrincipal.Cmp(big.NewInt(0)) == 0 {
+func calculateOrderInterest(orderID string, orderPrincipal decimal.Decimal, product *models.StakingProduct, when time.Time, totalPrincipal decimal.Decimal) (*models.OrderInterest, error) {
+	if totalPrincipal.Cmp(decimal.NewFromInt(0)) == 0 {
 		return nil, errval.ErrZeroTotalPrincipal
 	}
 	CAPY := CalculateCurrentAPY(product, totalPrincipal)
 	// interestGain = (interest.APY / (360.0 / N)) * principal * (1 / (N * 24))
 	N := float64(product.LockUpPeriod)
-	interestGain := new(big.Float).Quo(CAPY, big.NewFloat(360.0/N))
-	interestGain.Mul(interestGain, new(big.Float).SetInt(orderPrincipal))
-	interestGain.Mul(interestGain, big.NewFloat(1/(N*24)))
+	interestGain := CAPY.Div(decimal.NewFromFloat(360.0 / N))
+	interestGain = interestGain.Mul(orderPrincipal)
+	interestGain = interestGain.Mul(decimal.NewFromFloat(1 / (N * 24)))
 
 	interest := models.CreateOrderInterest()
 	interest.OrderID = orderID
 	interest.APY, _ = CAPY.Float64()
 	interest.Time = when.Format(TimeFormat)
-	interest.InterestGain, _ = interestGain.Int(nil)
+	interest.InterestGain = interestGain
 
 	return interest, nil
 }
@@ -214,7 +208,7 @@ func UpdateAllOrderInterest(currentTime time.Time) {
 				logger.Warn(err)
 				continue
 			}
-			err = dao.UpdateProductStatus(product.ID, false)
+			err = dao.DisableProduct(product.ID)
 			if err != nil {
 				logger.Warn(err)
 			}

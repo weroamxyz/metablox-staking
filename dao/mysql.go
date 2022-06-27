@@ -2,11 +2,10 @@ package dao
 
 import (
 	"fmt"
-	"math/big"
-
 	"github.com/go-playground/validator/v10"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	"github.com/shopspring/decimal"
 	logger "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
@@ -62,10 +61,6 @@ func GetProductInfoByID(productID string) (*models.StakingProduct, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = models.SetStakingProductBigFields(product)
-	if err != nil {
-		return nil, err
-	}
 	err = validate.Struct(product)
 	if err != nil {
 		return nil, err
@@ -101,10 +96,6 @@ func GetAllProductInfo() ([]*models.StakingProduct, error) {
 			return nil, err
 		}
 		err = validate.Struct(product)
-		if err != nil {
-			return nil, err
-		}
-		err = models.SetStakingProductBigFields(product)
 		if err != nil {
 			return nil, err
 		}
@@ -168,10 +159,6 @@ func GetStakingRecords(did string) ([]*models.StakingRecord, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = models.SetStakingRecordBigFields(record)
-		if err != nil {
-			return nil, err
-		}
 		records = append(records, record)
 	}
 	return records, nil
@@ -181,10 +168,6 @@ func GetInterestInfoByOrderID(id string) (*models.OrderInterestInfo, error) {
 	info := models.CreateOrderInterestInfo()
 	sqlStr := "select AccumulatedInterest, TotalInterestGained from Orders where OrderID = ?"
 	err := SqlDB.Get(info, sqlStr, id)
-	if err != nil {
-		return nil, err
-	}
-	err = models.SetOrderInterestInfoBigFields(info)
 	if err != nil {
 		return nil, err
 	}
@@ -206,10 +189,6 @@ func ExecuteGetInterestStmt(id string, stmt *sqlx.Stmt) (*models.OrderInterestIn
 	if err != nil {
 		return nil, err
 	}
-	err = models.SetOrderInterestInfoBigFields(info)
-	if err != nil {
-		return nil, err
-	}
 	return info, nil
 }
 
@@ -223,10 +202,6 @@ func GetTransactionsByOrderID(orderID string) ([]*models.TXInfo, error) {
 	for rows.Next() {
 		tx := models.CreateTXInfo()
 		err = rows.StructScan(tx)
-		if err != nil {
-			return nil, err
-		}
-		err = models.SetTXInfoBigFields(tx)
 		if err != nil {
 			return nil, err
 		}
@@ -252,10 +227,6 @@ func GetTransactionsByUserDID(userDID string) ([]*models.TXInfo, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = models.SetTXInfoBigFields(tx)
-		if err != nil {
-			return nil, err
-		}
 		err = validate.Struct(tx)
 		if err != nil {
 			return nil, err
@@ -275,10 +246,6 @@ func GetOrderInterestByID(orderID string) ([]*models.OrderInterest, error) {
 	for rows.Next() {
 		interest := models.CreateOrderInterest()
 		err = rows.StructScan(interest)
-		if err != nil {
-			return nil, err
-		}
-		err = models.SetOrderInterestBigFields(interest)
 		if err != nil {
 			return nil, err
 		}
@@ -326,12 +293,38 @@ func RedeemOrder(txInfo *models.TXInfo, interestGained string) error {
 	return nil
 }
 
-func RedeemInterestByOrderID(orderID string, interestGained string) error {
-	sqlStr := "update OrderInterest set TotalInterestGain = ? where OrderID = ? order by ID desc limit 1"
-	_, err := SqlDB.Exec(sqlStr, interestGained, orderID)
+func RedeemInterest(txInfo *models.TXInfo) error {
+	dbtx, err := SqlDB.Beginx()
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		if err == nil {
+			dbtx.Commit()
+		} else {
+			dbtx.Rollback()
+		}
+	}()
+
+	sqlStr := "update OrderInterest set TotalInterestGain = ? where OrderID = ? order by ID desc limit 1"
+	_, err = dbtx.Exec(sqlStr, txInfo.Interest.String(), txInfo.OrderID)
+	if err != nil {
+		return err
+	}
+
+	sqlStr = "update Orders set TotalInterestGained = AccumulatedInterest where OrderID = ?"
+	_, err = dbtx.Exec(sqlStr, txInfo.OrderID)
+	if err != nil {
+		return err
+	}
+
+	sqlStr = "insert into TXInfo (OrderID, TXCurrencyType, TXType, TXHash, Principal, Interest, UserAddress, RedeemableTime) values (:OrderID, :TXCurrencyType, :TXType, :TXHash, :Principal, :Interest, :UserAddress, :RedeemableTime)"
+	_, err = dbtx.NamedExec(sqlStr, txInfo)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -368,10 +361,6 @@ func GetOrdersByProductID(productID string) ([]*models.Order, error) {
 			logger.Warn(err)
 			continue
 		}
-		err = models.SetOrderBigFields(order)
-		if err != nil {
-			return nil, err
-		}
 		err = validate.Struct(order)
 		if err != nil {
 			logger.Warn(err)
@@ -386,10 +375,6 @@ func GetOrderByID(orderID string) (*models.Order, error) {
 	order := models.CreateOrder()
 	sqlStr := "select * from Orders where OrderID = ?"
 	err := SqlDB.Get(order, sqlStr, orderID)
-	if err != nil {
-		return nil, err
-	}
-	err = models.SetOrderBigFields(order)
 	if err != nil {
 		return nil, err
 	}
@@ -439,17 +424,13 @@ func PrepareGetOrderBuyInPrincipal() (*sqlx.Stmt, error) {
 	return stmt, nil
 }
 
-func ExecuteGetOrderBuyInPrincipal(stmt *sqlx.Stmt, orderID string) (*big.Int, error) {
-	var buyInAmount string
+func ExecuteGetOrderBuyInPrincipal(stmt *sqlx.Stmt, orderID string) (decimal.Decimal, error) {
+	var buyInAmount decimal.Decimal
 	err := stmt.Get(&buyInAmount, orderID)
 	if err != nil {
-		return nil, err
+		return decimal.Decimal{}, err
 	}
-	bigBuyIn, success := big.NewInt(0).SetString(buyInAmount, 10)
-	if !success {
-		return nil, errval.ErrPrincipalNotNumber
-	}
-	return bigBuyIn, nil
+	return buyInAmount, nil
 }
 
 func CompareMinimumInterest(orderID string, currentInterest string) (bool, error) {
@@ -515,18 +496,14 @@ func SubmitBuyin(tx *models.TXInfo) error {
 	return nil
 }
 
-func GetTotalInterestGained(id string) (*big.Int, error) {
-	var interest string
+func GetTotalInterestGained(id string) (decimal.Decimal, error) {
+	var interest decimal.Decimal
 	sqlStr := "select TotalInterestGained from Orders where OrderID = ?"
 	err := SqlDB.Get(&interest, sqlStr, id)
 	if err != nil {
-		return nil, err
+		return decimal.Decimal{}, err
 	}
-	bigInterest, success := big.NewInt(0).SetString(interest, 10)
-	if !success {
-		return nil, errval.ErrTotalInterestGainedNotNumber
-	}
-	return bigInterest, nil
+	return interest, nil
 }
 
 func HarvestOrderInterest(id string) error {
@@ -545,9 +522,9 @@ func GetProductNameForOrder(id string) (string, error) {
 	return name, nil
 }
 
-func UpdateProductStatus(id string, status bool) error {
-	sqlStr := `update StakingProducts set Status = ? where ID = ?`
-	_, err := SqlDB.Exec(sqlStr, status, id)
+func DisableProduct(id string) error {
+	sqlStr := `update StakingProducts set Status = 0 where ID = ?`
+	_, err := SqlDB.Exec(sqlStr, id)
 	return err
 }
 
@@ -562,10 +539,6 @@ func GetLatestPrincipalUpdate(productID string) (*models.PrincipalUpdate, error)
 
 	sqlStr := "select * from PrincipalUpdates where ProductID = ? order by Time desc"
 	err := SqlDB.Get(update, sqlStr, productID)
-	if err != nil {
-		return nil, err
-	}
-	err = models.SetPrincipalUpdateBigFields(update)
 	if err != nil {
 		return nil, err
 	}
@@ -584,10 +557,6 @@ func GetPrincipalUpdates(productID string) ([]*models.PrincipalUpdate, error) {
 	for rows.Next() {
 		update := models.NewPrincipalUpdate()
 		err := rows.StructScan(update)
-		if err != nil {
-			return nil, err
-		}
-		err = models.SetPrincipalUpdateBigFields(update)
 		if err != nil {
 			return nil, err
 		}
@@ -621,10 +590,6 @@ func GetSortedOrderInterestListUntilDate(orderID string, until string) ([]*model
 		if err != nil {
 			return nil, err
 		}
-		err = models.SetOrderInterestBigFields(interest)
-		if err != nil {
-			return nil, err
-		}
 		err = validate.Struct(interest)
 		if err != nil {
 			return nil, err
@@ -646,10 +611,6 @@ func PrepareGetMostRecentOrderInterestUntilDate() (*sqlx.Stmt, error) {
 func ExecuteGetMostRecentOrderInterestUntilDate(stmt *sqlx.Stmt, orderID string, until string) (*models.OrderInterest, error) {
 	interest := models.CreateOrderInterest()
 	err := stmt.Get(interest, orderID, until)
-	if err != nil {
-		return nil, err
-	}
-	err = models.SetOrderInterestBigFields(interest)
 	if err != nil {
 		return nil, err
 	}

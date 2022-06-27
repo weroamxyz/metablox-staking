@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	NONCE_TIME_OUT = 120 * 1000
+	NONCE_TIME_OUT = 120
 )
 
 var NoncePool map[string]models.VpNonce = map[string]models.VpNonce{}
@@ -40,7 +40,7 @@ func DeleteTimeoutSession() {
 		case <-timer.C:
 			t := time.Now()
 			for session, c := range NoncePool {
-				if t.UnixMilli()-c.Time.UnixMilli() > NONCE_TIME_OUT {
+				if t.Unix()-c.Time.Unix() > NONCE_TIME_OUT {
 					delete(NoncePool, session)
 				}
 			}
@@ -70,7 +70,7 @@ func GetNonce(c *gin.Context) (uint64, error) {
 	}
 
 	t := time.Now()
-	if t.UnixMilli()-nonce.Time.UnixMilli() > NONCE_TIME_OUT {
+	if t.Unix()-nonce.Time.Unix() > NONCE_TIME_OUT {
 		return 0, errval.ErrNonceTimeout
 	}
 

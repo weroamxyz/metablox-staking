@@ -2,6 +2,7 @@ package dao
 
 import (
 	"fmt"
+
 	"github.com/go-playground/validator/v10"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -272,13 +273,7 @@ func RedeemOrder(txInfo *models.TXInfo, interestGained string) error {
 		}
 	}()
 
-	sqlStr := "update OrderInterest set TotalInterestGain = ? where OrderID = ? order by ID desc limit 1"
-	_, err = dbtx.Exec(sqlStr, interestGained, txInfo.OrderID)
-	if err != nil {
-		return err
-	}
-
-	sqlStr = "update Orders set TotalInterestGained = AccumulatedInterest, Type = 'Complete' where OrderID = ?"
+	sqlStr := "update Orders set TotalInterestGained = AccumulatedInterest, Type = 'Complete' where OrderID = ?"
 	_, err = dbtx.Exec(sqlStr, txInfo.OrderID)
 	if err != nil {
 		return err
@@ -307,13 +302,7 @@ func RedeemInterest(txInfo *models.TXInfo) error {
 		}
 	}()
 
-	sqlStr := "update OrderInterest set TotalInterestGain = ? where OrderID = ? order by ID desc limit 1"
-	_, err = dbtx.Exec(sqlStr, txInfo.Interest.String(), txInfo.OrderID)
-	if err != nil {
-		return err
-	}
-
-	sqlStr = "update Orders set TotalInterestGained = AccumulatedInterest where OrderID = ?"
+	sqlStr := "update Orders set TotalInterestGained = AccumulatedInterest where OrderID = ?"
 	_, err = dbtx.Exec(sqlStr, txInfo.OrderID)
 	if err != nil {
 		return err

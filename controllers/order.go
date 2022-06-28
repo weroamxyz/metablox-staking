@@ -2,10 +2,11 @@ package controllers
 
 import (
 	"database/sql"
-	"github.com/shopspring/decimal"
 	"math"
 	"strconv"
 	"time"
+
+	"github.com/shopspring/decimal"
 
 	logger "github.com/sirupsen/logrus"
 
@@ -42,16 +43,15 @@ func CreateOrder(c *gin.Context) (*models.OrderOutput, error) {
 		return nil, err
 	}
 
-	floatAmount, err := strconv.ParseFloat(input.Amount, 64)
+	decimalAmount, err := decimal.NewFromString(input.Amount)
 	if err != nil {
 		return nil, err
 	}
-	bigAmount := models.MBLXToMinimumUnit(floatAmount)
 
-	if bigAmount.Cmp(product.MinOrderValue) == -1 {
+	if decimalAmount.Cmp(product.MinOrderValue) == -1 {
 		return nil, errval.ErrOrderAmountTooLow
 	}
-	if totalPrincipal.Add(bigAmount).Cmp(product.TopUpLimit) == 1 {
+	if totalPrincipal.Add(decimalAmount).Cmp(product.TopUpLimit) == 1 {
 		return nil, errval.ErrOrderExceedsTopUpLimit
 	}
 
@@ -60,7 +60,7 @@ func CreateOrder(c *gin.Context) (*models.OrderOutput, error) {
 		return nil, err
 	}
 
-	newOrder := models.NewOrder(input.ProductID, input.UserDID, models.OrderTypePending, paymentAddress, bigAmount, input.UserAddress)
+	newOrder := models.NewOrder(input.ProductID, input.UserDID, models.OrderTypePending, paymentAddress, decimalAmount, input.UserAddress)
 
 	orderID, err := dao.CreateOrder(newOrder)
 	if err != nil {
@@ -127,9 +127,8 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, err
 	}
 
-	convertedAmount := models.MinimumUnitToMBLX(amount)
 	time := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
-	output := models.NewRedeemOrderOutput(productName, strconv.FormatFloat(convertedAmount, 'f', -1, 64), time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
+	output := models.NewRedeemOrderOutput(productName, amount.String(), time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
 
 	// record change in staking pool's total principal
 	newPrincipal := models.NewPrincipalUpdate()
@@ -184,9 +183,8 @@ func RedeemInterest(c *gin.Context) (*models.RedeemOrderOuput, error) {
 		return nil, err
 	}
 
-	convertedInterest := models.MinimumUnitToMBLX(currentInterest)
 	time := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
-	output := models.NewRedeemOrderOutput(productName, strconv.FormatFloat(convertedInterest, 'f', -1, 64), time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
+	output := models.NewRedeemOrderOutput(productName, currentInterest.String(), time, userAddress, models.CurrencyTypeMBLX, tx.Hash().Hex())
 
 	err = dao.RedeemInterest(txInfo)
 	if err != nil {

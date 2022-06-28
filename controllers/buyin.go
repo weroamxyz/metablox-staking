@@ -2,9 +2,9 @@ package controllers
 
 import (
 	"database/sql"
-	"github.com/shopspring/decimal"
-	"strconv"
 	"time"
+
+	"github.com/shopspring/decimal"
 
 	"github.com/gin-gonic/gin"
 	"github.com/metabloxStaking/contract"
@@ -55,8 +55,7 @@ func SubmitBuyin(c *gin.Context) (*models.SubmitBuyinOutput, error) {
 		return nil, err
 	}
 
-	order.SetMBLXValues()
-	output := models.NewSubmitBuyinOutput(product.ProductName, strconv.FormatFloat(order.MBLXAmount, 'f', -1, 64), date, txInfo.UserAddress, txInfo.TXCurrencyType)
+	output := models.NewSubmitBuyinOutput(product.ProductName, order.Amount.String(), date, txInfo.UserAddress, txInfo.TXCurrencyType)
 
 	// record change in staking pool's total principal
 	newPrincipal := models.NewPrincipalUpdate()

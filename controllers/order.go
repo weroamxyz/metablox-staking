@@ -122,7 +122,7 @@ func RedeemOrder(c *gin.Context) (*models.RedeemOrderOuput, error) {
 
 	txInfo := models.NewTXInfo(orderID, models.CurrencyTypeMBLX, models.TxTypeOrderClosure, tx.Hash().Hex(), order.Amount, currentInterest, userAddress, redeemableDate)
 
-	err = dao.RedeemOrder(txInfo, interestInfo.AccumulatedInterest.String())
+	err = dao.RedeemOrder(txInfo)
 	if err != nil {
 		return nil, err
 	}

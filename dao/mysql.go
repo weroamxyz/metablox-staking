@@ -259,7 +259,7 @@ func GetOrderInterestByID(orderID string) ([]*models.OrderInterest, error) {
 	return interests, nil
 }
 
-func RedeemOrder(txInfo *models.TXInfo, interestGained string) error {
+func RedeemOrder(txInfo *models.TXInfo) error {
 	dbtx, err := SqlDB.Beginx()
 	if err != nil {
 		return err

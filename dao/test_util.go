@@ -123,11 +123,6 @@ func BuyinTestOrderWithDate(order *models.Order, date string) (string, error) {
 }
 
 func RedeemTestOrderWithDate(orderID string, date string) error {
-	interestInfo, err := GetInterestInfoByOrderID(orderID)
-	if err != nil {
-		return err
-	}
-
 	order, err := GetOrderByID(orderID)
 	if err != nil {
 		return err
@@ -143,7 +138,7 @@ func RedeemTestOrderWithDate(orderID string, date string) error {
 		RedeemableTime: date,
 	}
 
-	err = RedeemOrder(txInfo, interestInfo.AccumulatedInterest.String())
+	err = RedeemOrder(txInfo)
 	if err != nil {
 		return err
 	}

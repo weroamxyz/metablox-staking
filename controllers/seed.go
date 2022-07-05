@@ -79,6 +79,7 @@ func GetNonce(c *gin.Context) (uint64, error) {
 	return nonce.Nonce, nil
 }
 
+//TODO: check with Chinese team about what this function is for; not currently in the API document and it's unused in the app
 func ActivateExchange(c *gin.Context) error {
 	session := c.GetHeader("session")
 	if len(session) == 0 {
@@ -114,6 +115,7 @@ func ActivateExchange(c *gin.Context) error {
 	return err
 }
 
+//perform 1 or more seed exchanges, and send tokens to both the user's wallet address (in input) and the miners' wallet addresses (pulled from MiningRole table)
 func NewExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 	var input models.NewSeedExchangeInput
 	err := c.BindJSON(&input)
@@ -127,9 +129,9 @@ func NewExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 		return nil, errval.ErrETHAddress
 	}
 
-	validatorDID := input.Seeds[0].Confirm.Did
+	validatorDID := input.Seeds[0].Confirm.Did //user DID. Should be the same for all of the seeds
 
-	exchangeRate, err := dao.GetExchangeRate("1") //todo: work out how to handle exchange rate IDs
+	exchangeRate, err := dao.GetExchangeRate("1") //todo: come up with a better way of handling exchange rates; right now it's hard-coded to always return the first item in database
 	if err != nil {
 		return nil, err
 	}
@@ -142,61 +144,60 @@ func NewExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 		return nil, errval.ErrETHAddress
 	}
 
-	err = ValidateDID(validatorDID)
+	err = ValidateDID(validatorDID) //user's did must be in registry
 	if err != nil {
 		return nil, err
 	}
 
-	exists, err := dao.CheckIfDIDIsValidator(validatorDID)
+	exists, err := dao.CheckIfDIDIsValidator(validatorDID) //user's did must be in database as a validator
 	if !exists || err != nil {
 		return nil, errval.ErrInvalidValidator
 	}
 
-	for _, seed := range input.Seeds {
-
+	for _, seed := range input.Seeds { //verify the seeds before any tokens or sent or database values are modified
 		if seed.Confirm.Did != seed.Result.Target ||
-			seed.Confirm.Target != seed.Result.Did {
+			seed.Confirm.Target != seed.Result.Did { //a seed's confirm did must match its result target (the user DID), and its result did must match its confirm target (the miner DID)
 			return nil, errval.ErrDIDMismatch
 		}
 
-		if seed.Confirm.Did != validatorDID {
+		if seed.Confirm.Did != validatorDID { //all the seeds must have the same user DID
 			return nil, errval.ErrDIDNotConstant
 		}
 
-		err = ValidateDID(seed.Result.Did)
+		err = ValidateDID(seed.Result.Did) //miner's did must be in registry
 		if err != nil {
 			return nil, err
 		}
 
-		exists, err := dao.CheckIfDIDIsMiner(seed.Result.Did)
+		exists, err := dao.CheckIfDIDIsMiner(seed.Result.Did) //miner's did must be in database as a miner
 		if !exists || err != nil {
 			return nil, errval.ErrInvalidMiner
 		}
 
-		ret, err := verifyNetworkReq(&seed.Confirm)
+		ret, err := verifyNetworkReq(&seed.Confirm) //verify signature for confirm
 		if err != nil || !ret {
 			return nil, errval.ErrSignatureVerifyError
 		}
 
-		ret, err = verifyNetworkResult(&seed.Result)
+		ret, err = verifyNetworkResult(&seed.Result) //verify signature for result
 		if err != nil || !ret {
 			return nil, errval.ErrSignatureVerifyError
 		}
 
 		confirmKeys := *models.NewSeedHistoryKeys(seed.Confirm.Did, seed.Confirm.Target, seed.Confirm.Challenge)
-		_, mapped := previousKeys[confirmKeys]
+		_, mapped := previousKeys[confirmKeys] //check if there has already been a confirm exchange in this input with the same combination of user did, miner did, and challenge
 		if mapped {
 			return nil, errval.ErrDuplicateRequest
 		}
 		previousKeys[confirmKeys] = true
 
-		err = dao.CheckIfExchangeExists(&confirmKeys)
+		err = dao.CheckIfExchangeExists(&confirmKeys) //check if there has been a confirm exchange in the past with the same combination of user did, miner did, and challenge
 		if err != nil {
 			return nil, err
 		}
 
 		resultKeys := *models.NewSeedHistoryKeys(seed.Result.Did, seed.Result.Target, seed.Result.Challenge)
-		_, mapped = previousKeys[resultKeys]
+		_, mapped = previousKeys[resultKeys] //as above, but for result exchanges
 		if mapped {
 			return nil, errval.ErrDuplicateResult
 		}
@@ -214,11 +215,11 @@ func NewExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 		if role == nil {
 			return nil, errval.ErrMinerRoleNotFound
 		}
-		roles = append(roles, role)
+		roles = append(roles, role) //create list of miner wallet addresses
 	}
 
-	for i, seed := range input.Seeds {
-		sendSeedToken(seed.Result.Did, roles[i].WalletAddress, exchangeRate, 1)
+	for i, seed := range input.Seeds { //seeds have been verified, can now begin sending tokens
+		sendSeedToken(roles[i].WalletAddress, exchangeRate, 1) //send tokens to miner
 		minerExchange := models.NewSeedExchange(seed.Result.Did, seed.Result.Target, seed.Result.Challenge, exchangeRate.String(), exchangeRate.String())
 		err = dao.UploadSeedExchange(minerExchange)
 		if err != nil {
@@ -231,19 +232,20 @@ func NewExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 			return nil, err
 		}
 	}
-	output, err := sendSeedToken(validatorDID, input.WalletAddress, exchangeRate, len(input.Seeds))
+	output, err := sendSeedToken(input.WalletAddress, exchangeRate, len(input.Seeds)) //send all the user tokens simultaneously; only 1 transaction
 	if err != nil {
 		return nil, err
 	}
 	return output, nil
 }
 
-func sendSeedToken(DID, addressString string, exchangeRate *big.Int, seedsExchanged int) (*models.SeedExchangeOutput, error) {
+//send an amount of tokens equal to exchangeRate * seedsExchanged to a specified wallet address
+func sendSeedToken(addressString string, exchangeRate *big.Int, seedsExchanged int) (*models.SeedExchangeOutput, error) {
 	targetAddress := common.HexToAddress(addressString)
 	//todo: may have to change calculation method
 	txAmount := big.NewInt(0).Mul(exchangeRate, big.NewInt(int64(seedsExchanged)))
 
-	tx, err := tokenutil.Transfer(targetAddress, txAmount)
+	tx, err := tokenutil.Transfer(targetAddress, txAmount) //send the tokens
 	if err != nil {
 		return nil, err
 	}
@@ -256,6 +258,7 @@ func sendSeedToken(DID, addressString string, exchangeRate *big.Int, seedsExchan
 	return output, nil
 }
 
+//verify signature of a NetworkConfirmRequest/Confirm
 func verifyNetworkReq(req *models.NetworkConfirmRequest) (bool, error) {
 	bytes, err := serializeNetworkReq(req)
 
@@ -263,7 +266,7 @@ func verifyNetworkReq(req *models.NetworkConfirmRequest) (bool, error) {
 		return false, err
 	}
 
-	resolutionMeta, holderDoc, _ := did.Resolve(req.Did, serviceModels.CreateResolutionOptions())
+	resolutionMeta, holderDoc, _ := did.Resolve(req.Did, serviceModels.CreateResolutionOptions()) //get DID document for the request's DID
 	if resolutionMeta.Error != "" {
 		return false, errors.New(resolutionMeta.Error)
 	}
@@ -271,7 +274,7 @@ func verifyNetworkReq(req *models.NetworkConfirmRequest) (bool, error) {
 	targetVM := holderDoc.VerificationMethod[0]
 
 	hashedData := sha256.Sum256(bytes)
-	pubData, err := base64.StdEncoding.DecodeString(req.PubKey)
+	pubData, err := base64.StdEncoding.DecodeString(req.PubKey) //get public key data for request
 	if err != nil {
 		return false, err
 	}
@@ -284,20 +287,21 @@ func verifyNetworkReq(req *models.NetworkConfirmRequest) (bool, error) {
 	address := crypto.PubkeyToAddress(*pubKey)
 	accountId := "eip155:1666600000:" + address.Hex()
 
-	if accountId != targetVM.BlockchainAccountId {
+	if accountId != targetVM.BlockchainAccountId { //check that the public key provided by the request matches the address data stored in the did document's VM
 		return false, errors.New("pubkey and document mismatch")
 	}
 
-	sig, err := base64.StdEncoding.DecodeString(req.Signature)
+	sig, err := base64.StdEncoding.DecodeString(req.Signature) //turn the signature string into r and s values
 	if err != nil {
 		return false, err
 	}
 	r := new(big.Int).SetBytes(sig[:32])
 	s := new(big.Int).SetBytes(sig[32:])
 
-	return ecdsa.Verify(pubKey, hashedData[:], r, s), nil
+	return ecdsa.Verify(pubKey, hashedData[:], r, s), nil //verify the signature
 }
 
+//turn a NetworkConfirmRequest into a byte array so it can be hashed
 func serializeNetworkReq(req *models.NetworkConfirmRequest) ([]byte, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString(req.Did)
@@ -310,6 +314,7 @@ func serializeNetworkReq(req *models.NetworkConfirmRequest) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+//identical to verifyNetworkReq, but for NetworkConfirmResult/Result instead
 func verifyNetworkResult(resp *models.NetworkConfirmResult) (bool, error) {
 	lbytes, err := serializeNetworkResult(resp)
 
@@ -317,7 +322,7 @@ func verifyNetworkResult(resp *models.NetworkConfirmResult) (bool, error) {
 		return false, err
 	}
 
-	resolutionMeta, holderDoc, _ := did.Resolve(resp.Did, serviceModels.CreateResolutionOptions())
+	resolutionMeta, holderDoc, _ := did.Resolve(resp.Did, serviceModels.CreateResolutionOptions()) //get DID document for the result's DID
 	if resolutionMeta.Error != "" {
 		return false, errors.New(resolutionMeta.Error)
 	}
@@ -325,7 +330,7 @@ func verifyNetworkResult(resp *models.NetworkConfirmResult) (bool, error) {
 	targetVM := holderDoc.VerificationMethod[0]
 
 	hashedData := sha256.Sum256(lbytes)
-	pubData, err := base64.StdEncoding.DecodeString(resp.PubKey)
+	pubData, err := base64.StdEncoding.DecodeString(resp.PubKey) //get public key data for result
 	if err != nil {
 		return false, err
 	}
@@ -338,20 +343,21 @@ func verifyNetworkResult(resp *models.NetworkConfirmResult) (bool, error) {
 	address := crypto.PubkeyToAddress(*pubKey)
 	accountId := "eip155:1666600000:" + address.Hex()
 
-	if accountId != targetVM.BlockchainAccountId {
+	if accountId != targetVM.BlockchainAccountId { //check that the public key provided by the result matches the address data stored in the did document's VM
 		return false, errors.New("pubkey and document mismatch")
 	}
 
-	sig, err := base64.StdEncoding.DecodeString(resp.Signature)
+	sig, err := base64.StdEncoding.DecodeString(resp.Signature) //turn the signature string into r and s values
 	if err != nil {
 		return false, err
 	}
 	r := new(big.Int).SetBytes(sig[:32])
 	s := new(big.Int).SetBytes(sig[32:])
 
-	return ecdsa.Verify(pubKey, hashedData[:], r, s), nil
+	return ecdsa.Verify(pubKey, hashedData[:], r, s), nil //verify the signature
 }
 
+//turn a NetworkConfirmResult into a byte array so it can be hashed
 func serializeNetworkResult(result *models.NetworkConfirmResult) ([]byte, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString(result.Did)
@@ -414,6 +420,7 @@ func serializeNetworkResult(result *models.NetworkConfirmResult) ([]byte, error)
 //	return output, nil
 //}
 
+//get exchange rate with specified id
 func GetExchangeRate(c *gin.Context) (string, error) {
 	exchangeRateID := c.Param("id")
 	exchangeRate, err := dao.GetExchangeRate(exchangeRateID)

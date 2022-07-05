@@ -8,6 +8,7 @@ import (
 	"github.com/metabloxStaking/errval"
 )
 
+//get all seed exchanges where the user was the specified did, and return the total amount of MBLX redeemed
 func GetRewardHistory(c *gin.Context) (string, error) {
 	userDID := c.Param("did")
 

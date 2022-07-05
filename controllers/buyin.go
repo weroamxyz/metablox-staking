@@ -2,9 +2,10 @@ package controllers
 
 import (
 	"database/sql"
-	"github.com/shopspring/decimal"
 	"strconv"
 	"time"
+
+	"github.com/shopspring/decimal"
 
 	"github.com/gin-gonic/gin"
 	"github.com/metabloxStaking/contract"
@@ -13,6 +14,8 @@ import (
 	"github.com/metabloxStaking/models"
 )
 
+//Use a hash of a completed ethereum transaction to complete the buy-in process for an order.
+//Transaction is validated to make sure it is for the right amount and order
 func SubmitBuyin(c *gin.Context) (*models.SubmitBuyinOutput, error) {
 	input := models.CreateSubmitBuyinInput()
 	err := c.BindJSON(input)
@@ -24,7 +27,7 @@ func SubmitBuyin(c *gin.Context) (*models.SubmitBuyinOutput, error) {
 	if err != nil {
 		return nil, err
 	}
-	if exists {
+	if exists { //tx hash has already been used in previous transaction
 		return nil, errval.ErrExistingTXHash
 	}
 

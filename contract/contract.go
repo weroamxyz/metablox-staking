@@ -4,8 +4,9 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
-	"github.com/shopspring/decimal"
 	"math/big"
+
+	"github.com/shopspring/decimal"
 
 	"github.com/metabloxStaking/comm/regutil"
 	"github.com/metabloxStaking/contract/tokenutil"
@@ -48,6 +49,7 @@ func Init() error {
 	return nil
 }
 
+//check that did is in registry smart contract
 func CheckForRegisteredDID(did string) error {
 	didAccount, err := registryInstance.Dids(nil, did)
 	if err != nil {
@@ -59,6 +61,7 @@ func CheckForRegisteredDID(did string) error {
 	return nil
 }
 
+//TODO: seems to be deprecated as it is unused here, likely should be removed
 func generateAuth(privateKey *ecdsa.PrivateKey) (*bind.TransactOpts, error) {
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1666700000))
 	if err != nil {
@@ -80,6 +83,7 @@ func generateAuth(privateKey *ecdsa.PrivateKey) (*bind.TransactOpts, error) {
 	return auth, nil
 }
 
+//check that a buy-in transaction is sending the correct amount of tokens from a user to the MBLX token address
 func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 	tx, pending, err := client.TransactionByHash(context.Background(), common.HexToHash(txHash))
 	if err != nil {
@@ -154,6 +158,7 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 	return nil
 }
 
+//used to transfer tokens to a user whenever they redeem an order (or the interest on that order)
 func RedeemOrder(addressStr string, amount decimal.Decimal) (*types.Transaction, error) {
 	// verify eth address
 	if !regutil.IsETHAddress(addressStr) {

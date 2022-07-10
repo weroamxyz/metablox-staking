@@ -3,7 +3,7 @@ package contract
 import (
 	"github.com/agiledragon/gomonkey/v2"
 	"github.com/ethereum/go-ethereum/common"
-	ethclient "github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/metabloxStaking/comm/abiutil"
 	"github.com/metabloxStaking/contract/erc20"
 	"github.com/metabloxStaking/contract/tokenutil"
@@ -21,7 +21,8 @@ const (
 
 func TestCheckIfTransactionMatchesOrder(t *testing.T) {
 	txHash := "0xd7147ee886e349e767ed7751ce4f3070479b87eeddac3fd9ae294e3bd702143e"
-	_client, _ := ethclient.Dial(RpcUrl)
+	_client, err := ethclient.Dial(RpcUrl)
+	assert.NoError(t, err)
 	order := &models.Order{
 		PaymentAddress: "0x0F3f0B1B914FF55988E7168890dcF70CAB378EA6",
 		Amount:         decimal.NewFromInt(25300000),
@@ -43,7 +44,7 @@ func TestCheckIfTransactionMatchesOrder(t *testing.T) {
 	defer patch2.Reset()
 	// === Mock end
 
-	err := CheckIfTransactionMatchesOrder(txHash, order)
+	err = CheckIfTransactionMatchesOrder(txHash, order)
 	assert.NoError(t, err)
 
 	order.PaymentAddress = common.Address{}.Hex()

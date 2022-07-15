@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strconv"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/metabloxStaking/models"
@@ -167,4 +168,21 @@ func SetTXInfoDate(orderID string, txType string, date string) error {
 	sqlStr := `update TXInfo set CreateDate = ? where OrderID = ? and TXType = ?`
 	_, err := SqlDB.Exec(sqlStr, date, orderID, txType)
 	return err
+}
+
+func InsertTestProductsWithStartDate(date time.Time) error {
+	sqlStrs := []string{
+		"INSERT INTO `StakingProducts` VALUES (4,'TestProduct4',10000000,500000000000,5000000,180,0.2, ?, ?, 1,0,1,'testPaymentAddress','MBLX','Ethereum',5)",
+		"INSERT INTO `StakingProducts` VALUES (5,'TestProduct5',10000000,500000000000,5000000,180,0.2, ?, ?, 1,0,1,'testPaymentAddress2','MBLX','Ethereum',6)",
+		"INSERT INTO `StakingProducts` VALUES (6,'TestProduct6',10000000,500000000000,5000000,180,0.2, ?, ?, 1,0,1,'testPaymentAddress3','MBLX','Ethereum',NULL)",
+	}
+
+	for i, sqlStr := range sqlStrs {
+		currDate := date.Add(time.Hour * 24 * 180 * time.Duration(i))
+		_, err := SqlDB.Exec(sqlStr, currDate, currDate)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

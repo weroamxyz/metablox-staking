@@ -72,7 +72,8 @@ func TestUpdateOrderInterest(t *testing.T) {
 	assert.Nil(t, err)
 	defer dao.CleanupTestDB()
 
-	product, err := dao.GetProductInfoByID("1")
+	err = dao.InsertTestProductsWithStartDate(time.Now())
+	product, err := dao.GetProductInfoByID("4")
 	assert.Nil(t, err)
 
 	order := &models.Order{
@@ -85,7 +86,7 @@ func TestUpdateOrderInterest(t *testing.T) {
 	assert.Nil(t, err)
 	orderID := strconv.Itoa(id)
 
-	now := time.Now().UTC()
+	now := time.Now()
 	err = dao.InsertPrincipalUpdate(product.ID, order.Amount.String())
 	assert.Nil(t, err)
 

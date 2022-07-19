@@ -11,6 +11,7 @@ import (
 	"github.com/metabloxStaking/models"
 )
 
+//returns all staking records (info about orders and their buy-in transactions) associated with a specified did
 func GetStakingRecords(c *gin.Context) ([]*models.StakingRecord, error) {
 	userDID := c.Param("did")
 	valid := did.IsDIDValid(did.SplitDIDString(userDID))

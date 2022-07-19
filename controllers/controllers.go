@@ -13,8 +13,7 @@ import (
 	logger "github.com/sirupsen/logrus"
 )
 
-const placeholderExchangeRate = 30.0
-
+//check if DID is formatted properly and is in DID registry
 func ValidateDID(userDID string) error {
 	splitDID := did.SplitDIDString(userDID)
 	valid := did.IsDIDValid(splitDID)
@@ -28,6 +27,7 @@ func ValidateDID(userDID string) error {
 	return nil
 }
 
+//get staking product with specified id. Also calculate its current APY
 func GetProductInfoByIDHandler(c *gin.Context) {
 	productID := c.Param("id")
 	product, err := dao.GetProductInfoByID(productID)
@@ -44,6 +44,7 @@ func GetProductInfoByIDHandler(c *gin.Context) {
 	ResponseSuccess(c, product)
 }
 
+//get all staking products. Also calculate their current APYs
 func GetAllProductInfoHandler(c *gin.Context) {
 	products, err := dao.GetAllProductInfo()
 	if err != nil {
@@ -91,6 +92,7 @@ func GetStakingRecordsHandler(c *gin.Context) {
 	ResponseSuccess(c, records)
 }
 
+//get all transactions associated with the specified order id
 func GetTransactionsByOrderIDHandler(c *gin.Context) {
 	orderID := c.Param("id")
 	transactions, err := dao.GetTransactionsByOrderID(orderID)
@@ -102,6 +104,7 @@ func GetTransactionsByOrderIDHandler(c *gin.Context) {
 	ResponseSuccess(c, transactions)
 }
 
+//get all transactions associated with the specified user did
 func GetTransactionsByUserDIDHandler(c *gin.Context) {
 	userDID := c.Param("did")
 
@@ -114,6 +117,7 @@ func GetTransactionsByUserDIDHandler(c *gin.Context) {
 	ResponseSuccess(c, transactions)
 }
 
+//get all order interest entries that have happened up until now, sorted in ascending order of recency
 func GetOrderInterestHandler(c *gin.Context) {
 	orderID := c.Param("id")
 	transactions, err := dao.GetSortedOrderInterestListUntilDate(orderID, time.Now().Format("2006-01-02 15:04:05"))

@@ -10,8 +10,9 @@ import (
 	"github.com/metabloxStaking/models"
 )
 
-const acceptableDistance = 30
+const acceptableDistance = 30 //arbitrary value; can be increased to increase search range for miners, or decreased to do the opposite
 
+//returns all non-virtual miners which are within a certain distance of the provided coordinates
 func GetNearbyMiners(latitude, longitude string) ([]*models.MinerInfo, error) {
 	minerList, err := GetAllMiners()
 	if err != nil {
@@ -36,7 +37,7 @@ func GetNearbyMiners(latitude, longitude string) ([]*models.MinerInfo, error) {
 		}
 		longDistance := floatLong - *miner.Longitude
 		latDistance := floatLat - *miner.Latitude
-		totalDistance := math.Sqrt(math.Pow(longDistance, 2) + math.Pow(latDistance, 2))
+		totalDistance := math.Sqrt(math.Pow(longDistance, 2) + math.Pow(latDistance, 2)) //use pythagorean theorem to calculate distance
 		if totalDistance < acceptableDistance {
 			nearbyMiners = append(nearbyMiners, miner)
 		}
@@ -44,6 +45,7 @@ func GetNearbyMiners(latitude, longitude string) ([]*models.MinerInfo, error) {
 	return nearbyMiners, nil
 }
 
+//returns all virtual miners as well as any within a certain distance of the provided coordinates
 func GetMinerList(c *gin.Context) ([]*models.MinerInfo, error) {
 
 	latitude := c.Query("latitude")
@@ -57,7 +59,7 @@ func GetMinerList(c *gin.Context) ([]*models.MinerInfo, error) {
 		return minerList, nil
 	}
 
-	minerList, err := dao.GetAllVirtualMinerInfo() //return all virtual miners along with the closest one
+	minerList, err := dao.GetAllVirtualMinerInfo()
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +74,7 @@ func GetMinerList(c *gin.Context) ([]*models.MinerInfo, error) {
 	return minerList, nil
 }
 
+//return all miners
 func GetAllMiners() ([]*models.MinerInfo, error) {
 	minerList, err := dao.GetAllMinerInfo()
 	if err != nil {
@@ -88,6 +91,7 @@ func GetAllMiners() ([]*models.MinerInfo, error) {
 	return minerList, nil
 }
 
+//return the miner that has the specified ID
 func GetMinerByID(c *gin.Context) (*models.MinerInfo, error) {
 
 	minerID := c.Query("minerid")

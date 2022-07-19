@@ -303,6 +303,17 @@ func CreateOrderInterest() *OrderInterest {
 	return &OrderInterest{}
 }
 
+func NewOrderInterest(orderID, time string, APY float64, interestGain, totalInterestGain decimal.Decimal) *OrderInterest {
+	return &OrderInterest{
+		"",
+		orderID,
+		time,
+		APY,
+		interestGain,
+		totalInterestGain,
+	}
+}
+
 func CreateOrderInterestList() []*OrderInterest {
 	return []*OrderInterest{}
 }
@@ -416,6 +427,14 @@ func NewSeedHistoryKeys(did, target, challenge string) *SeedHistoryKeys {
 		did,
 		target,
 		challenge,
+	}
+}
+
+func NewMiningRole(did, wallet, roleType string) *MiningRole {
+	return &MiningRole{
+		did,
+		wallet,
+		roleType,
 	}
 }
 

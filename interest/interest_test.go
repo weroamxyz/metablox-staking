@@ -72,7 +72,8 @@ func TestUpdateOrderInterest(t *testing.T) {
 	assert.Nil(t, err)
 	defer dao.CleanupTestDB()
 
-	product, err := dao.GetProductInfoByID("1")
+	err = dao.InsertTestProductsWithStartDate(time.Now())
+	product, err := dao.GetProductInfoByID("4")
 	assert.Nil(t, err)
 
 	order := &models.Order{
@@ -85,7 +86,7 @@ func TestUpdateOrderInterest(t *testing.T) {
 	assert.Nil(t, err)
 	orderID := strconv.Itoa(id)
 
-	now := time.Now().UTC()
+	now := time.Now()
 	err = dao.InsertPrincipalUpdate(product.ID, order.Amount.String())
 	assert.Nil(t, err)
 
@@ -150,7 +151,22 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 	assert.Nil(t, err)
 	defer dao.CleanupTestDB()
 
-	product, err := dao.GetProductInfoByID("1")
+	sqlStrs := []string{
+		`truncate table StakingProducts`,
+		`truncate table Orders`,
+		`truncate table OrderInterest`,
+		`truncate table PrincipalUpdates`,
+		`truncate table TXInfo`,
+	}
+	for _, sqlStr := range sqlStrs {
+		_, err := dao.SqlDB.Exec(sqlStr)
+		assert.Nil(t, err)
+	}
+
+	err = dao.InsertTestProductsWithStartDate(time.Now().AddDate(0, 0, -1))
+	assert.Nil(t, err)
+
+	product, err := dao.GetProductInfoByID("4")
 	assert.Nil(t, err)
 	productStart, err := time.Parse(TimeFormat, product.StartDate)
 	assert.Nil(t, err)
@@ -165,7 +181,7 @@ func TestOrderInterest_MultipleUsers(t *testing.T) {
 		assert.Nil(t, err)
 		if !event.isRedeem { // order buy-in
 			order := &models.Order{
-				ProductID: "1",
+				ProductID: "4",
 				UserDID:   "test",
 				Type:      "Pending",
 				Amount:    event.amount,

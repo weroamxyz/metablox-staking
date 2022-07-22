@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"github.com/shopspring/decimal"
 	"math/big"
 	"math/rand"
 	"strconv"
@@ -240,19 +241,19 @@ func NewExchangeSeed(c *gin.Context) (*models.SeedExchangeOutput, error) {
 }
 
 //send an amount of tokens equal to exchangeRate * seedsExchanged to a specified wallet address
-func sendSeedToken(addressString string, exchangeRate *big.Int, seedsExchanged int) (*models.SeedExchangeOutput, error) {
+func sendSeedToken(addressString string, exchangeRate decimal.Decimal, seedsExchanged int) (*models.SeedExchangeOutput, error) {
 	targetAddress := common.HexToAddress(addressString)
 	//todo: may have to change calculation method
-	txAmount := big.NewInt(0).Mul(exchangeRate, big.NewInt(int64(seedsExchanged)))
+	txAmount := exchangeRate.Mul(decimal.NewFromInt(int64(seedsExchanged)))
 
-	tx, err := tokenutil.Transfer(targetAddress, txAmount) //send the tokens
+	tx, err := tokenutil.Transfer(targetAddress, txAmount.BigInt()) //send the tokens
 	if err != nil {
 		return nil, err
 	}
 
 	txTime := strconv.FormatFloat(float64(time.Now().UnixNano())/float64(time.Second), 'f', 3, 64)
-	convertedTxAmount := big.NewFloat(0).Quo(big.NewFloat(0).SetInt(txAmount), big.NewFloat(1000000))
-	convertedExchange := big.NewFloat(0).Quo(big.NewFloat(0).SetInt(exchangeRate), big.NewFloat(1000000))
+	convertedTxAmount := txAmount.Div(decimal.NewFromInt(1000000))
+	convertedExchange := exchangeRate.Div(decimal.NewFromInt(1000000))
 	output := models.NewSeedExchangeOutput(convertedTxAmount.String(), tx.Hash().Hex(), txTime, convertedExchange.String())
 
 	return output, nil
@@ -427,7 +428,6 @@ func GetExchangeRate(c *gin.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	convertedExchangeRate := big.NewFloat(0).Quo(big.NewFloat(0).SetInt(exchangeRate), big.NewFloat(1000000))
-	return convertedExchangeRate.String(), nil
+	rate := exchangeRate.Div(decimal.NewFromInt(1000000))
+	return rate.String(), nil
 }

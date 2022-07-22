@@ -1,11 +1,11 @@
 package dao
 
 import (
-	"math/big"
-
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/metabloxStaking/errval"
 	"github.com/metabloxStaking/models"
+	"github.com/shopspring/decimal"
+	logger "github.com/sirupsen/logrus"
 )
 
 func GetAllMinerInfo() ([]*models.MinerInfo, error) {
@@ -95,15 +95,20 @@ func CheckIfExchangeExists(keys *models.SeedHistoryKeys) error {
 	return nil
 }
 
-func GetExchangeRate(id string) (*big.Int, error) {
+func GetExchangeRate(id string) (decimal.Decimal, error) {
 	var stringRate string
 	sqlStr := "select ExchangeRate from ExchangeRate where ID = ?"
 	err := SqlDB.Get(&stringRate, sqlStr, id)
-	bigRate, success := big.NewInt(0).SetString(stringRate, 10)
-	if !success {
-		return nil, errval.ErrExchangeRateNotNumber
+	if err != nil {
+		return decimal.Decimal{}, err
 	}
-	return bigRate, err
+	rate, err := decimal.NewFromString(stringRate)
+	if err != nil {
+		logger.Warn("exec GetExchangeRate function error:", err)
+		return decimal.Decimal{}, errval.ErrExchangeRateNotNumber
+	}
+
+	return rate, err
 }
 
 func CheckIfDIDIsValidator(did string) (bool, error) {

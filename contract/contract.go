@@ -99,6 +99,7 @@ func CheckIfTransactionMatchesOrder(txHash string, order *models.Order) error {
 	}
 
 	if msg.From() != common.HexToAddress(order.UserAddress) || *msg.To() != tokenutil.MBLXTokenAddress() {
+		logger.Warnf("tx address does not match order address,detail: expected from=%s,actual from=%s,expected to=%s,actual to=%s\n,", order.UserAddress, msg.From().Hex(), tokenutil.MBLXTokenAddress().Hex(), msg.To().Hex())
 		return errval.ErrAddressComparisonFail
 	}
 

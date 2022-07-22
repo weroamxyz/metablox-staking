@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/MetaBloxIO/metablox-foundation-services v0.0.0-20220616061729-bceea553bd8f
+	github.com/agiledragon/gomonkey/v2 v2.8.0 // indirect
 	github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6 // indirect
 	github.com/coreos/go-etcd v2.0.0+incompatible // indirect
 	github.com/ethereum/go-ethereum v1.10.17

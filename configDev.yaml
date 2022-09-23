@@ -6,10 +6,10 @@ log:
   stdout:  true
 mysql:
   host: "127.0.0.1"
-  port: 3306
+  port: 8889
   user: "root"
-  password: "omnisolutesting"
-  dbname: "foundationService"
+  password: "13701803328"
+  dbname: "metabloxstakingtest"
 metablox:
   rpcUrl: "https://api.s0.ps.hmny.io/"
   tokenAddress: "0x7d9A974db87320Dd92fE74D31e2c4c32b3c4CB0C"

@@ -221,3 +221,28 @@ func NewSeedExchangeHandler(c *gin.Context) {
 
 	ResponseSuccess(c, output)
 }
+
+func GetWifiAccessInfoHandler(c *gin.Context) {
+	wifi, err := GetWifiByAccount(c)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	ResponseSuccess(c, wifi)
+}
+
+func GetMinerByBSSIDHandler(c *gin.Context) {
+	miner, err := GetMinerByBSSID(c)
+	if err != nil {
+		ResponseErrorWithMsg(c, CodeError, err.Error())
+		return
+	}
+
+	ResponseSuccess(c, miner)
+}
+
+func GetIOSprofileHandler(c *gin.Context) {
+
+	c.FileAttachment("./profile/Hotspot.mobileconfig", "Hotspot.mobileconfig")
+}

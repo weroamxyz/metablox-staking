@@ -252,6 +252,15 @@ type SeedHistoryKeys struct {
 	Challenge string
 }
 
+type WifiAccessInfo struct {
+	ID           string `db:"ID"`
+	CredentialID string `db:"CredentialID"`
+	Type         string `db:"Type"`
+	SSID         string `db:"SSID"`
+	UserName     string `db:"UserName"`
+	Password     string `db:"Password"`
+}
+
 func CreateOrder() *Order {
 	return &Order{}
 }
@@ -436,6 +445,10 @@ func NewMiningRole(did, wallet, roleType string) *MiningRole {
 		wallet,
 		roleType,
 	}
+}
+
+func CreateWifiAccessInfo() *WifiAccessInfo {
+	return &WifiAccessInfo{}
 }
 
 //need to convert SeedInfo portion of presentation from a map to a struct.

@@ -109,3 +109,23 @@ func GetMinerByID(c *gin.Context) (*models.MinerInfo, error) {
 
 	return miner, nil
 }
+
+//return the miner that has the specified BSSID
+func GetMinerByBSSID(c *gin.Context) (*models.MinerInfo, error) {
+
+	bssid := c.Param("BSSID")
+	println(bssid)
+
+	miner, err := dao.GetMinerInfoByBSSID(bssid)
+	if err != nil {
+		return nil, err
+	}
+
+	createDate, err := time.Parse("2006-01-02 15:04:05", miner.CreateTime)
+	if err != nil {
+		return nil, err
+	}
+	miner.CreateTime = strconv.FormatFloat(float64(createDate.UnixNano())/float64(time.Second), 'f', 3, 64)
+
+	return miner, nil
+}

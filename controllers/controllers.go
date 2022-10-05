@@ -244,5 +244,5 @@ func GetMinerByBSSIDHandler(c *gin.Context) {
 
 func GetIOSprofileHandler(c *gin.Context) {
 
-	c.FileAttachment("./profile/Hotspot.mobileconfig", "Hotspot.mobileconfig")
+	c.FileAttachment("./profile/client.p12", "client.p12")
 }

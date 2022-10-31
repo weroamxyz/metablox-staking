@@ -646,3 +646,23 @@ func GetMiningRole(DID string) (*models.MiningRole, error) {
 	}
 	return nil, nil
 }
+
+func GetMinerByBSSID(bssid string) (*models.MinerInfo, error) {
+	miner := models.CreateMinerInfo()
+	sqlStr := "select * from Miner where Bssid = ?"
+	err := SqlDB.Get(miner, sqlStr, bssid)
+	if err != nil {
+		return nil, err
+	}
+	return miner, nil
+}
+
+func GetWifiByAccount(account string) (*models.MinerInfo, error) {
+	wifi := models.CreateMinerInfo()
+	sqlStr := "select * from Miner where Bssid = ?"
+	err := SqlDB.Get(wifi, sqlStr, account)
+	if err != nil {
+		return nil, err
+	}
+	return wifi, nil
+}

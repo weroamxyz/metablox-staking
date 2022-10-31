@@ -57,6 +57,17 @@ func GetMinerInfoByID(id string) (*models.MinerInfo, error) {
 	return miner, nil
 }
 
+func GetMinerInfoByBSSID(bssid string) (*models.MinerInfo, error) {
+	miner := models.CreateMinerInfo()
+	sqlStr := "select * from MinerInfo where BSSID = ?"
+	err := SqlDB.Get(miner, sqlStr, bssid)
+	if err != nil {
+		return nil, err
+	}
+
+	return miner, nil
+}
+
 func GetSeedHistory(did string) ([]*models.SeedExchange, error) {
 	var exchangeList []*models.SeedExchange
 	sqlStr := "select * from SeedExchangeHistory where UserDID = ?"
@@ -131,4 +142,15 @@ func CheckIfDIDIsMiner(did string) (bool, error) {
 	}
 
 	return count != 0, nil
+}
+
+func GetWifiAccessInfo(id string) (*models.WifiAccessInfo, error) {
+	miner := models.CreateWifiAccessInfo()
+	sqlStr := "select * from WifiAccessInfo where ID = ?"
+	err := SqlDB.Get(miner, sqlStr, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return miner, nil
 }

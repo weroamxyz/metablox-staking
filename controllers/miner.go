@@ -13,7 +13,7 @@ import (
 const acceptableDistance = 30 //arbitrary value; can be increased to increase search range for miners, or decreased to do the opposite
 
 //returns all non-virtual miners which are within a certain distance of the provided coordinates
-func GetNearbyMiners(latitude, longitude string) ([]*models.MinerInfo, error) {
+func GetNearbyMiners(latitude, longitude, distance string) ([]*models.MinerInfo, error) {
 	minerList, err := GetAllMiners()
 	if err != nil {
 		return nil, err
@@ -29,6 +29,11 @@ func GetNearbyMiners(latitude, longitude string) ([]*models.MinerInfo, error) {
 		return nil, err
 	}
 
+	floatDis, err := strconv.ParseFloat(distance, 64)
+	if err != nil {
+		return nil, err
+	}
+
 	var nearbyMiners []*models.MinerInfo
 
 	for _, miner := range minerList {
@@ -38,7 +43,7 @@ func GetNearbyMiners(latitude, longitude string) ([]*models.MinerInfo, error) {
 		longDistance := floatLong - *miner.Longitude
 		latDistance := floatLat - *miner.Latitude
 		totalDistance := math.Sqrt(math.Pow(longDistance, 2) + math.Pow(latDistance, 2)) //use pythagorean theorem to calculate distance
-		if totalDistance < acceptableDistance {
+		if totalDistance < floatDis {
 			nearbyMiners = append(nearbyMiners, miner)
 		}
 	}
@@ -50,6 +55,7 @@ func GetMinerList(c *gin.Context) ([]*models.MinerInfo, error) {
 
 	latitude := c.Query("latitude")
 	longitude := c.Query("longitude")
+	distance := c.Query("distance")
 
 	if latitude == "" || longitude == "" {
 		minerList, err := GetAllMiners()
@@ -58,13 +64,16 @@ func GetMinerList(c *gin.Context) ([]*models.MinerInfo, error) {
 		}
 		return minerList, nil
 	}
+	if distance == "" {
+		distance = "0"
+	}
 
 	minerList, err := dao.GetAllVirtualMinerInfo()
 	if err != nil {
 		return nil, err
 	}
 
-	nearbyMiners, err := GetNearbyMiners(latitude, longitude)
+	nearbyMiners, err := GetNearbyMiners(latitude, longitude, distance)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +106,26 @@ func GetMinerByID(c *gin.Context) (*models.MinerInfo, error) {
 	minerID := c.Query("minerid")
 
 	miner, err := dao.GetMinerInfoByID(minerID)
+	if err != nil {
+		return nil, err
+	}
+
+	createDate, err := time.Parse("2006-01-02 15:04:05", miner.CreateTime)
+	if err != nil {
+		return nil, err
+	}
+	miner.CreateTime = strconv.FormatFloat(float64(createDate.UnixNano())/float64(time.Second), 'f', 3, 64)
+
+	return miner, nil
+}
+
+//return the miner that has the specified BSSID
+func GetMinerByBSSID(c *gin.Context) (*models.MinerInfo, error) {
+
+	bssid := c.Param("BSSID")
+	println(bssid)
+
+	miner, err := dao.GetMinerInfoByBSSID(bssid)
 	if err != nil {
 		return nil, err
 	}

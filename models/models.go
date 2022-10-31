@@ -86,21 +86,25 @@ type PaymentInfo struct {
 }
 
 type MinerInfo struct {
-	ID           string   `db:"ID"`
-	Name         string   `db:"Name"`
-	SSID         *string  `db:"SSID"`
-	BSSID        *string  `db:"BSSID"`
-	CreateTime   string   `db:"CreateTime"`
-	Longitude    *float64 `db:"Longitude"`
-	Latitude     *float64 `db:"Latitude"`
-	OnlineStatus bool     `db:"OnlineStatus"`
-	MiningPower  *float64 `db:"MiningPower"`
-	IsMinable    bool     `db:"IsMinable"`
-	DID          string   `db:"DID"`
-	Host         string   `db:"Host"`
-	IsVirtual    bool     `db:"IsVirtual"`
-	Password     string   `db:"Password"`
-	DeviceName   string   `db:"DeviceName"`
+	ID             string   `db:"ID"`
+	Name           string   `db:"Name"`
+	SSID           *string  `db:"SSID"`
+	BSSID          *string  `db:"BSSID"`
+	CreateTime     string   `db:"CreateTime"`
+	Longitude      *float64 `db:"Longitude"`
+	Latitude       *float64 `db:"Latitude"`
+	OnlineStatus   bool     `db:"OnlineStatus"`
+	MiningPower    *float64 `db:"MiningPower"`
+	IsMinable      bool     `db:"IsMinable"`
+	DID            string   `db:"DID"`
+	Host           string   `db:"Host"`
+	IsVirtual      bool     `db:"IsVirtual"`
+	Password       string   `db:"Password"`
+	DeviceName     string   `db:"DeviceName"`
+	Availability   bool     `db:"Availability"`
+	Address        string   `db:"Address"`
+	RewardEarned   string   `db:"RewardEarned"`
+	SignalStrength string   `db:"SignalStrength"`
 }
 
 type SeedExchange struct {
@@ -250,6 +254,15 @@ type SeedHistoryKeys struct {
 	DID       string
 	Target    string
 	Challenge string
+}
+
+type WifiAccessInfo struct {
+	ID           string `db:"ID"`
+	CredentialID string `db:"CredentialID"`
+	Type         string `db:"Type"`
+	SSID         string `db:"SSID"`
+	UserName     string `db:"UserName"`
+	Password     string `db:"Password"`
 }
 
 func CreateOrder() *Order {
@@ -436,6 +449,10 @@ func NewMiningRole(did, wallet, roleType string) *MiningRole {
 		wallet,
 		roleType,
 	}
+}
+
+func CreateWifiAccessInfo() *WifiAccessInfo {
+	return &WifiAccessInfo{}
 }
 
 //need to convert SeedInfo portion of presentation from a map to a struct.

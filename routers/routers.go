@@ -31,11 +31,6 @@ func Setup() {
 	r.POST("/mining/activate", controllers.ActivateExchangeHandler)
 	r.POST("/mining/newexchange", controllers.NewSeedExchangeHandler)
 
-	r.GET("/wifi-profile/ios", controllers.GetIOSprofileHandler)
-	r.GET("/wifi/:account", controllers.GetWifiAccessInfoHandler)
-	r.GET("/miners", controllers.GetMinerListHandler)
-	r.GET("/miner/:BSSID", controllers.GetMinerByBSSIDHandler)
-
 	didParamGroup.Use(middleware.DIDParamMiddleware())
 	{
 		didParamGroup.GET("/staking/orders/:did", controllers.GetStakingRecordsHandler)
@@ -47,6 +42,10 @@ func Setup() {
 	{
 		didQueryGroup.GET("/mining/minerlist", controllers.GetMinerListHandler)
 		didQueryGroup.GET("/mining/miner", controllers.GetMinerByIDHandler)
+		didQueryGroup.GET("/wifi-profile/ios", controllers.GetIOSprofileHandler)
+		didQueryGroup.GET("/wifi/:account", controllers.GetWifiAccessInfoHandler)
+		didQueryGroup.GET("/miners", controllers.GetMinerListHandler)
+		didQueryGroup.GET("/miner/:BSSID", controllers.GetMinerByBSSIDHandler)
 	}
 
 	r.Run(":8886")
